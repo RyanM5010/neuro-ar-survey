@@ -1,0 +1,1228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Neurosurgery AR Feature Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+[hidden] { display: none !important; }
+/* Layout: two feature trays flank the glasses view; the view is a fixed 1600x900 canvas scaled to fit, so HUD proportions match the 16:9 display */
+:root {
+  --bg: #ecf1f0;
+  --surface: #f7faf9;
+  --raise: #ffffff;
+  --ink: #13211f;
+  --muted: #566865;
+  --line: #cddad7;
+  --accent: #0a766b;
+  --accent-ink: #ffffff;
+  --accent-soft: #d5ece8;
+  --shadow: rgba(14, 52, 48, 0.3);
+  --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-hud: "Barlow Semi Condensed", "IBM Plex Sans", system-ui, sans-serif;
+  /* The simulated glasses display looks the same in both themes */
+  --scene-bg: #0d2a2b;
+  --hud-panel: rgba(5, 17, 19, 0.64);
+  --hud-line: rgba(140, 232, 218, 0.4);
+  --hud-faint: rgba(208, 238, 233, 0.16);
+  --hud-text: #ecfbf8;
+  --hud-dim: rgba(214, 240, 236, 0.76);
+  --hud-accent: #8de9db;
+  --hud-mark: #ffd84d;
+  --hud-ok: #4be28c;
+  --hud-warn: #ffb44a;
+  --hud-rec: #ff5248;
+  --hud-danger: #d8483a;
+  --mon-hr: #4be28c;
+  --mon-bp: #ff8a7a;
+  --mon-spo2: #45d3f2;
+  --mon-co2: #f4d64b;
+  --ana-tract: #5aa9ff;
+  --ana-art: #ff6b6b;
+  --ana-vein: #b49bff;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c1413; --surface: #131e1d; --raise: #192826; --ink: #e2ecea; --muted: #94a7a4; --line: #273836;
+    --accent: #3fc4b1; --accent-ink: #04211d; --accent-soft: #15332f; --shadow: rgba(0, 0, 0, 0.55);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c1413; --surface: #131e1d; --raise: #192826; --ink: #e2ecea; --muted: #94a7a4; --line: #273836;
+  --accent: #3fc4b1; --accent-ink: #04211d; --accent-soft: #15332f; --shadow: rgba(0, 0, 0, 0.55);
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 400 14px/1.5 var(--font-ui); -webkit-font-smoothing: antialiased; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app { height: 100%; display: flex; flex-direction: column; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 16px; }
+
+/* Header */
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 10px 32px; padding-block: 16px 14px; }
+.titles { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.eyebrow { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); }
+h1 { margin: 0; font-size: clamp(20px, 1rem + 0.9vw, 28px); line-height: 1.25; font-weight: 600; text-wrap: balance; }
+.sub { margin: 0; max-width: 72ch; font-size: 14px; color: var(--muted); }
+.actions { display: flex; align-items: center; gap: 14px; }
+.count { font-size: 14px; color: var(--muted); white-space: nowrap; }
+.count b { font: 600 22px/1 var(--font-hud); color: var(--ink); font-variant-numeric: tabular-nums; padding-inline: 2px; }
+.btn { padding: 8px 16px; border: 1px solid var(--line); border-radius: 999px; background: var(--raise); font-size: 14px; font-weight: 600; white-space: nowrap; cursor: pointer; transition: border-color .15s, color .15s, background-color .15s; }
+.btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn.undo, .btn.undo:hover:not(:disabled) { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover:not(:disabled) { color: var(--accent-ink); filter: brightness(1.1); }
+
+/* Start and result dialogs */
+dialog { width: min(440px, calc(100vw - 32px)); padding: 24px; border: 1px solid var(--line); border-radius: 16px; background: var(--raise); color: var(--ink); box-shadow: 0 24px 60px -20px var(--shadow); }
+dialog::backdrop { background: rgba(4, 14, 16, .6); }
+dialog h2 { margin: 0 0 6px; font-size: 20px; line-height: 1.3; font-weight: 600; }
+dialog p { margin: 0; color: var(--muted); }
+.field { display: flex; flex-direction: column; gap: 6px; margin-top: 16px; font-weight: 600; }
+.field input { padding: 9px 12px; font-weight: 400; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.field input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.note { margin-top: 12px; font-size: 13px; }
+.dlg-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+
+/* Board */
+.board { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(200px, 248px) minmax(0, 1fr) minmax(200px, 248px); gap: 20px; }
+.tray { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 4px; scrollbar-width: thin; }
+.group, .idea { display: flex; flex-direction: column; gap: 6px; }
+.group-title { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.cards { display: flex; flex-direction: column; gap: 6px; }
+.card { display: grid; grid-template-columns: 28px minmax(0, 1fr) 16px; align-items: center; gap: 10px; width: 100%; padding: 6px 10px 6px 8px; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; transition: border-color .15s, background-color .15s; }
+.card:hover { border-color: var(--accent); background: var(--raise); }
+.card-ico { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 7px; background: var(--accent-soft); color: var(--accent); transition: background-color .15s, color .15s; }
+.card-ico svg { width: 17px; height: 17px; }
+.card-text { min-width: 0; }
+.card-name { display: block; font-size: 14px; font-weight: 600; line-height: 1.3; }
+.card-desc { display: block; font-size: 12px; line-height: 1.35; color: var(--muted); }
+.card-state { display: grid; color: var(--accent); opacity: 0; }
+.card-state svg { width: 16px; height: 16px; }
+.card.placed { background: var(--accent-soft); border-color: transparent; cursor: pointer; }
+.card.placed:hover { border-color: var(--accent); }
+.card.placed .card-ico { background: var(--accent); color: var(--accent-ink); }
+.card.placed .card-state { opacity: 1; }
+body.dragging, body.dragging * { cursor: grabbing !important; }
+.idea { position: sticky; bottom: 0; z-index: 1; padding-block: 8px 2px; background: var(--bg); }
+.idea-row { display: flex; gap: 6px; }
+.idea-row input { flex: 1; min-width: 0; padding: 7px 10px; font-size: 14px; background: var(--surface); border: 1px dashed var(--accent); border-radius: 10px; }
+.idea-row input::placeholder { color: var(--muted); }
+.idea-row .btn { padding: 7px 12px; border-radius: 10px; }
+
+/* Glasses view */
+.view { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+.stage-area { flex: 1; min-height: 0; container-type: size; display: grid; place-items: center; }
+.stage-wrap { position: relative; width: min(100cqw, 100cqh * 16 / 9); max-width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 18px; background: var(--scene-bg); box-shadow: 0 0 0 1px var(--line), 0 24px 48px -24px var(--shadow); isolation: isolate; transition: box-shadow .15s; }
+.stage-wrap:focus { outline: none; }
+.stage-wrap.drop-ready { box-shadow: 0 0 0 3px var(--accent), 0 24px 48px -24px var(--shadow); }
+.stage { position: absolute; left: 0; top: 0; width: 1600px; height: 900px; transform-origin: 0 0; }
+.scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.stage-hint { position: absolute; left: 800px; top: 470px; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 26px 46px; border: 2px dashed rgba(236, 251, 248, .55); border-radius: 22px; background: rgba(4, 14, 16, .5); color: var(--hud-text); font-size: 34px; font-weight: 600; text-align: center; white-space: nowrap; pointer-events: none; }
+.stage-hint small { font-size: 22px; font-weight: 400; color: var(--hud-dim); }
+.caption { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px; font-size: 12.5px; color: var(--muted); }
+.cap-left { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.pill { padding: 2px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+/* HUD widgets, sized in glasses-canvas pixels */
+.w { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; gap: 12px; padding: 14px 18px 18px; font-size: 24px; line-height: 1.35; font-weight: 500; color: var(--hud-text); background: var(--hud-panel); border: 1.5px solid var(--hud-line); border-radius: 16px; box-shadow: 0 12px 30px rgba(0, 0, 0, .35); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; transition: opacity .16s; }
+.w:focus-visible { outline: 3px solid var(--hud-mark); outline-offset: 4px; }
+.w.moving { cursor: grabbing; box-shadow: 0 26px 56px rgba(0, 0, 0, .5); }
+.w.leaving { opacity: .75; }
+.w.leaving::after { content: "Release to remove"; position: absolute; inset: 0; display: grid; place-items: center; border-radius: 16px; background: rgba(150, 28, 24, .72); color: #fff; font-size: 28px; font-weight: 600; }
+.w.gone { opacity: 0; }
+.w-head { display: flex; align-items: center; gap: 10px; font-size: 21px; font-weight: 500; letter-spacing: .02em; color: var(--hud-dim); }
+.w-head > svg { flex: none; width: 24px; height: 24px; color: var(--hud-accent); }
+.w-name { min-width: 0; }
+.w-x { flex: none; margin-left: auto; width: 36px; height: 36px; display: grid; place-items: center; padding: 0 0 3px; border: 0; border-radius: 50%; background: rgba(255, 255, 255, .08); color: var(--hud-dim); font-size: 28px; line-height: 1; cursor: pointer; }
+.w-x:hover, .w-x:focus-visible { background: var(--hud-danger); color: #fff; outline: none; }
+.ghost-layer { position: fixed; inset: 0; z-index: 50; pointer-events: none; overflow: hidden; }
+.ghost-layer .w { transform-origin: 0 0; opacity: .94; box-shadow: 0 30px 60px rgba(0, 0, 0, .45); }
+
+.lab { font-size: 19px; letter-spacing: .03em; color: var(--hud-dim); }
+.unit { font-size: 19px; color: var(--hud-dim); }
+.num { font-family: var(--font-hud); font-weight: 600; font-size: 32px; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.num.xl { font-size: 54px; }
+.num.xxl { font-size: 64px; }
+.num.sm { font-size: 20px; font-weight: 500; }
+.meta { font-size: 19px; color: var(--hud-dim); }
+.meta.row { display: flex; justify-content: space-between; gap: 12px; }
+.meta.row > span, .call-bar b, .call-bar span { white-space: nowrap; }
+.warn-text { color: var(--hud-warn); }
+.read { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 6px; }
+.read .lab { flex-basis: 100%; }
+.c-hr { color: var(--mon-hr); }
+.c-bp { color: var(--mon-bp); }
+.c-spo2 { color: var(--mon-spo2); }
+.c-co2 { color: var(--mon-co2); }
+.c-hr .lab, .c-hr .unit, .c-bp .lab, .c-bp .unit, .c-spo2 .lab, .c-spo2 .unit, .c-co2 .lab, .c-co2 .unit { color: inherit; opacity: .8; }
+.vit-hr { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.ecg { flex: none; width: 170px; height: 54px; color: var(--mon-hr); }
+.ecg path { fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.ecg-run { animation: ecg 1.1s linear infinite; }
+@keyframes ecg { to { transform: translateX(-100px); } }
+.vit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 18px; padding-top: 12px; border-top: 1px solid var(--hud-faint); }
+.pt-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; }
+.pt-name b { font-size: 30px; font-weight: 600; }
+.pt-name span { font-size: 20px; color: var(--hud-dim); }
+.kv { display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: 6px 16px; margin: 0; }
+.kv dt { font-size: 19px; color: var(--hud-dim); }
+.kv dd { margin: 0; font-size: 23px; }
+.kv-num dd { font-size: 19px; color: var(--hud-dim); }
+.kv-num dd .num { font-size: 30px; color: var(--hud-text); }
+.kv-num dd.warn-text, .kv-num dd.warn-text .num { color: var(--hud-warn); }
+.tag { align-self: flex-start; padding: 3px 12px; border-radius: 999px; font-size: 20px; font-weight: 600; }
+.tag.warn { background: var(--hud-warn); color: #231500; }
+.tag.side { background: var(--hud-accent); color: #04211d; }
+.tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.bar { position: relative; height: 10px; border-radius: 5px; background: var(--hud-faint); overflow: hidden; }
+.bar i { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: var(--mon-bp); }
+.trio { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding-top: 12px; border-top: 1px solid var(--hud-faint); }
+.img { display: block; width: 100%; height: auto; border-radius: 10px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 19px; color: var(--hud-dim); }
+.legend span { display: inline-flex; align-items: center; gap: 8px; }
+.sw { display: inline-block; width: 22px; height: 6px; border-radius: 3px; }
+.sw-tract { background: var(--ana-tract); }
+.sw-art { background: var(--ana-art); }
+.sw-vein { background: var(--ana-vein); }
+.sw-tu { background: var(--hud-mark); }
+.s-tract { stroke: var(--ana-tract); }
+.s-art { stroke: var(--ana-art); }
+.s-vein { stroke: var(--ana-vein); }
+.s-mark { stroke: var(--hud-mark); }
+.model-svg { transform-origin: 50% 50%; animation: sway 7s ease-in-out infinite alternate; }
+@keyframes sway { from { transform: perspective(700px) rotateY(-16deg); } to { transform: perspective(700px) rotateY(16deg); } }
+.tri { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.mv { display: block; width: 100%; height: auto; border-radius: 8px; background: #030404; }
+.mv text { font: 600 11px var(--font-hud); letter-spacing: .06em; fill: #a9c2c9; }
+.mri-lr { font: 600 14px var(--font-hud); fill: #8fa7ae; }
+.nav-read { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; padding-top: 10px; border-top: 1px solid var(--hud-faint); }
+.nav-ok { display: flex; align-items: center; gap: 10px; }
+.eps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.eps li { display: grid; grid-template-columns: minmax(0, 1fr) 96px 86px; align-items: center; gap: 12px; font-size: 21px; }
+.eps svg { width: 96px; height: 30px; color: var(--mon-hr); }
+.eps path { fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.eps em { justify-self: end; font-style: normal; font-size: 18px; color: var(--mon-hr); }
+.eps .warn, .eps .warn svg, .eps .warn em { color: var(--hud-warn); }
+.tm-main { display: flex; flex-direction: column; }
+.tm-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-top: 10px; border-top: 1px solid var(--hud-faint); }
+.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; font-size: 23px; }
+.steps li { display: flex; align-items: center; gap: 12px; color: var(--hud-dim); }
+.steps li::before { content: ""; flex: none; width: 22px; height: 22px; border: 2px solid currentColor; border-radius: 50%; }
+.steps li.done::before { content: "✓"; display: grid; place-items: center; font-size: 15px; font-weight: 700; line-height: 1; color: #04241a; background: var(--mon-hr); border-color: var(--mon-hr); }
+.steps li.now { color: var(--hud-text); font-weight: 600; }
+.steps li.now::before { background: var(--hud-mark); border-color: var(--hud-mark); box-shadow: 0 0 0 6px rgba(255, 216, 77, .22); }
+.now-tag { margin-left: auto; padding: 1px 10px; border-radius: 999px; font-size: 17px; color: var(--hud-mark); background: rgba(255, 216, 77, .16); }
+.cnt { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.cnt li { display: grid; grid-template-columns: 130px auto 1fr; align-items: baseline; gap: 14px; font-size: 22px; }
+.cnt em { justify-self: end; font-style: normal; font-size: 18px; }
+.cnt .ok em { color: var(--mon-hr); }
+.cnt .warn b, .cnt .warn em { color: var(--hud-warn); }
+.rec, .live-top { display: flex; align-items: center; gap: 12px; font-size: 24px; }
+.rec .num, .live-top .num { margin-left: auto; }
+.rec .num { font-size: 38px; }
+.live-top .on-air { color: var(--hud-rec); letter-spacing: .06em; }
+.rec-dot { flex: none; width: 18px; height: 18px; border-radius: 50%; background: var(--hud-rec); box-shadow: 0 0 12px var(--hud-rec); animation: blink 1.4s ease-in-out infinite; }
+@keyframes blink { 50% { opacity: .3; } }
+.q, .msgs li { padding: 10px 14px; border-radius: 10px; background: rgba(255, 255, 255, .06); font-size: 22px; }
+.q .lab { display: block; }
+.call { position: relative; overflow: hidden; border-radius: 10px; }
+.call .img { border-radius: 0; }
+.call-bar { position: absolute; inset: auto 0 0 0; display: flex; align-items: center; gap: 10px; padding: 30px 14px 10px; font-size: 19px; color: var(--hud-dim); background: linear-gradient(rgba(0, 0, 0, 0), rgba(0, 0, 0, .72) 45%, rgba(0, 0, 0, .88)); }
+.call-bar b { font-size: 22px; color: var(--hud-text); }
+.dot-ok { flex: none; width: 12px; height: 12px; border-radius: 50%; background: var(--mon-hr); }
+.voice { display: flex; align-items: center; gap: 18px; }
+.mic { flex: none; width: 54px; height: 54px; display: grid; place-items: center; border-radius: 50%; color: var(--hud-accent); background: rgba(141, 233, 219, .16); }
+.mic svg { width: 28px; height: 28px; }
+.bars { display: flex; align-items: center; gap: 7px; height: 46px; }
+.bars i { width: 7px; height: 100%; border-radius: 4px; background: var(--hud-accent); transform: scaleY(.3); animation: bar 1s ease-in-out infinite; }
+.bars i:nth-child(2n) { animation-delay: -.35s; }
+.bars i:nth-child(3n) { animation-delay: -.6s; }
+.bars i:nth-child(5n) { animation-delay: -.15s; }
+@keyframes bar { 0%, 100% { transform: scaleY(.25); } 50% { transform: scaleY(1); } }
+.said { font-size: 30px; font-weight: 600; }
+.msgs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.msgs li + li { opacity: .7; }
+.msg-top { display: flex; justify-content: space-between; gap: 12px; font-size: 18px; color: var(--hud-dim); }
+.msg-top b { color: var(--hud-accent); font-weight: 600; }
+.idea-text { margin: 0; font-size: 28px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; }
+.w-idea { border-style: dashed; border-color: var(--hud-mark); }
+.w-idea .w-head > svg { color: var(--hud-mark); }
+.w.bare { gap: 10px; padding: 0; background: none; border: 0; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.w.bare .w-head { align-self: flex-start; padding: 5px 6px 5px 14px; border-radius: 999px; background: var(--hud-panel); border: 1.5px solid var(--hud-line); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.w.bare .w-x { width: 30px; height: 30px; font-size: 24px; }
+.lens { position: relative; width: 250px; height: 250px; border-radius: 50%; border: 3px solid var(--hud-line); background-color: var(--scene-bg); background-repeat: no-repeat; box-shadow: 0 12px 30px rgba(0, 0, 0, .45); }
+.lens::before, .lens::after { content: ""; position: absolute; left: 50%; top: 50%; background: rgba(255, 255, 255, .6); transform: translate(-50%, -50%); }
+.lens::before { width: 2px; height: 34px; }
+.lens::after { width: 34px; height: 2px; }
+.lens-x { position: absolute; right: 30px; bottom: 30px; padding: 2px 10px; border-radius: 8px; font: 600 26px/1.2 var(--font-hud); background: rgba(0, 0, 0, .55); }
+.anno { display: block; width: 100%; height: auto; overflow: visible; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .6)); }
+.anno path { fill: none; stroke: var(--hud-mark); stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; }
+.anno-note { align-self: flex-start; display: flex; align-items: center; gap: 10px; padding: 7px 16px 7px 7px; border-radius: 999px; font-size: 21px; font-weight: 600; color: #231a00; background: var(--hud-mark); }
+.traj { display: block; width: 100%; height: auto; overflow: visible; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, .65)); }
+.tj path { fill: none; stroke: var(--hud-accent); stroke-width: 3.5; stroke-linecap: round; stroke-dasharray: 10 8; }
+.tj .tj-in { fill: none; stroke: var(--hud-accent); stroke-width: 3.5; }
+.tj .tj-tg { fill: var(--hud-accent); }
+.tj text { font: 600 22px/1 var(--font-hud); fill: var(--hud-text); paint-order: stroke; stroke: rgba(0, 0, 0, .75); stroke-width: 5px; }
+.tj.on path { stroke: var(--hud-ok); stroke-width: 5; stroke-dasharray: none; }
+.tj.on .tj-in { stroke: var(--hud-ok); stroke-width: 4.5; }
+.tj.on .tj-tg { fill: var(--hud-ok); }
+.tj.on text { fill: var(--hud-ok); }
+.traj-note { align-self: flex-start; display: flex; align-items: baseline; gap: 10px; padding: 7px 16px; border-radius: 999px; font-size: 21px; font-weight: 600; white-space: nowrap; background: var(--hud-panel); border: 1.5px solid var(--hud-line); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.traj-note b { color: var(--hud-ok); }
+.av { flex: none; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; font-size: 18px; color: var(--hud-mark); background: #231a00; }
+
+@media (max-height: 900px) {
+  .tray { gap: 12px; }
+  .cards { gap: 4px; }
+  .card { padding-block: 4px; }
+}
+
+/* Portrait screens and tablets: view on top (sticky), trays below */
+@media (max-width: 899px), (max-aspect-ratio: 1/1) {
+  html, body { height: auto; }
+  .app { height: auto; }
+  .board { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "view view" "left right"; gap: 14px 18px; }
+  .view { grid-area: view; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; padding-block: 4px 10px; background: var(--bg); }
+  .stage-area { container-type: normal; display: block; }
+  .stage-wrap { width: min(100%, 60vh * 16 / 9); margin-inline: auto; }
+  #trayL { grid-area: left; }
+  #trayR { grid-area: right; }
+  .tray { overflow: visible; }
+  .idea { position: static; }
+}
+/* Phones: one column, tap a card to add it */
+@media (max-width: 640px) {
+  .board { grid-template-columns: minmax(0, 1fr); grid-template-areas: "view" "left" "right"; }
+  .top { padding-block: 12px 10px; }
+  .sub { font-size: 13px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .card { grid-template-columns: 24px minmax(0, 1fr); gap: 8px; touch-action: pan-y; }
+  .card-ico { width: 24px; height: 24px; }
+  .card-state { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ecg-run, .rec-dot, .bars i, .model-svg { animation: none; }
+  .card, .card-ico, .btn, .stage-wrap, .w { transition: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="top">
+    <div class="titles">
+      <p class="eyebrow">AR glasses for neurosurgery · co-design</p>
+      <h1>What would you want to see in your glasses during surgery?</h1>
+      <p class="sub">Drag features from either side into the view and place them where they would work for you. Drag anything you don't need out of the view. Click Submit when you're done.</p>
+    </div>
+    <div class="actions">
+      <span class="count"><b id="count">0</b> in view</span>
+      <button class="btn" id="clearBtn" type="button">Clear view</button>
+      <button class="btn primary" id="submitBtn" type="button">Submit</button>
+    </div>
+  </header>
+
+  <main class="board">
+    <aside class="tray" id="trayL" aria-label="Features: patient, monitoring, navigation and imaging"></aside>
+
+    <section class="view" aria-label="Glasses view">
+      <div class="stage-area">
+        <div class="stage-wrap" id="stageWrap" tabindex="-1">
+          <div class="stage" id="stage">
+            <svg class="scene" id="scene" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1600" height="900" aria-hidden="true" focusable="false">
+              <defs>
+                <linearGradient id="sc-drape" x1="0" y1="0" x2="1920" y2="1080" gradientUnits="userSpaceOnUse">
+                  <stop offset="0" stop-color="#2f7571"/><stop offset=".55" stop-color="#1e5856"/><stop offset="1" stop-color="#103a3b"/>
+                </linearGradient>
+                <radialGradient id="sc-skin" cx="960" cy="570" r="560" gradientUnits="userSpaceOnUse">
+                  <stop offset="0" stop-color="#dba582"/><stop offset=".7" stop-color="#c58862"/><stop offset="1" stop-color="#a66846"/>
+                </radialGradient>
+                <radialGradient id="sc-iodine" cx="960" cy="560" r="480" gradientUnits="userSpaceOnUse">
+                  <stop offset="0" stop-color="#8f3f17" stop-opacity=".4"/><stop offset="1" stop-color="#8f3f17" stop-opacity="0"/>
+                </radialGradient>
+                <radialGradient id="sc-wound" cx="960" cy="530" r="400" gradientUnits="userSpaceOnUse">
+                  <stop offset=".55" stop-color="#b64c40"/><stop offset="1" stop-color="#6c211c"/>
+                </radialGradient>
+                <linearGradient id="sc-bone" x1="0" y1="300" x2="0" y2="770" gradientUnits="userSpaceOnUse">
+                  <stop offset="0" stop-color="#f1e9d6"/><stop offset="1" stop-color="#cbbd9c"/>
+                </linearGradient>
+                <radialGradient id="sc-dura" cx="960" cy="530" r="340" gradientUnits="userSpaceOnUse">
+                  <stop offset="0" stop-color="#d6c2b5"/><stop offset="1" stop-color="#9d8579"/>
+                </radialGradient>
+                <radialGradient id="sc-cortex" cx="950" cy="520" r="300" gradientUnits="userSpaceOnUse">
+                  <stop offset="0" stop-color="#f1c9b7"/><stop offset=".65" stop-color="#e1a795"/><stop offset="1" stop-color="#b8766a"/>
+                </radialGradient>
+                <radialGradient id="sc-sphere" cx=".38" cy=".34" r=".7">
+                  <stop offset="0" stop-color="#f8f9f9"/><stop offset=".55" stop-color="#bcc3c6"/><stop offset="1" stop-color="#7a8286"/>
+                </radialGradient>
+                <linearGradient id="sc-steel" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#f2f5f6"/><stop offset=".5" stop-color="#9eaaae"/><stop offset="1" stop-color="#dbe2e4"/>
+                </linearGradient>
+                <radialGradient id="sc-lamp" cx="960" cy="560" r="760" gradientUnits="userSpaceOnUse">
+                  <stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset=".5" stop-color="#fff" stop-opacity=".05"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
+                </radialGradient>
+                <radialGradient id="sc-vig" cx="960" cy="540" r="1100" gradientUnits="userSpaceOnUse">
+                  <stop offset=".5" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".6"/>
+                </radialGradient>
+                <filter id="sc-fold" x="-50%" y="-100%" width="200%" height="300%"><feGaussianBlur stdDeviation="34"/></filter>
+                <filter id="sc-soft" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="4"/></filter>
+                <filter id="sc-fine" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur stdDeviation="1.5"/></filter>
+                <filter id="sc-far" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3"/></filter>
+                <filter id="sc-dof" x="0" y="0" width="100%" height="100%"><feGaussianBlur stdDeviation="1.6"/></filter>
+                <path id="sc-field" d="M540 290C690 180 1230 170 1380 280 1480 350 1490 780 1390 850 1240 940 680 940 540 850 440 780 440 360 540 290z"/>
+                <path id="sc-cortex-edge" d="M730 520C735 430 840 384 960 382 1090 380 1190 422 1200 512 1210 600 1160 668 1060 690 990 706 900 704 830 680 760 656 726 600 730 520z"/>
+                <clipPath id="sc-brain"><use href="#sc-cortex-edge"/></clipPath>
+                <g id="sc-clip"><rect x="-19" y="-10" width="38" height="20" rx="5" fill="#2e6ec2"/><rect x="-14" y="-6" width="28" height="4" rx="2" fill="#86b6f0" opacity=".75"/></g>
+                <g id="sc-pad"><rect x="-38" y="-14" width="76" height="28" rx="3" fill="#f3f0e9"/><rect x="-38" y="-14" width="22" height="28" rx="3" fill="#dc9c92" opacity=".5"/><path d="M-30-5h60M-30 4h60" stroke="#ddd8cf" stroke-width="1.5"/></g>
+                <circle id="sc-ball" r="24" fill="url(#sc-sphere)" stroke="#6c7478" stroke-width="1.5"/>
+              </defs>
+              <g filter="url(#sc-dof)">
+                <rect width="1920" height="1080" fill="url(#sc-drape)"/>
+                <g filter="url(#sc-fold)">
+                  <ellipse cx="330" cy="210" rx="460" ry="70" transform="rotate(-16 330 210)" fill="#4a9790" opacity=".55"/>
+                  <ellipse cx="420" cy="430" rx="360" ry="40" transform="rotate(-8 420 430)" fill="#0a2e30" opacity=".5"/>
+                  <ellipse cx="1620" cy="250" rx="420" ry="60" transform="rotate(14 1620 250)" fill="#0a2c2e" opacity=".55"/>
+                  <ellipse cx="1560" cy="470" rx="340" ry="44" transform="rotate(6 1560 470)" fill="#478f89" opacity=".4"/>
+                  <ellipse cx="280" cy="880" rx="480" ry="80" transform="rotate(10 280 880)" fill="#082a2c" opacity=".6"/>
+                  <ellipse cx="1680" cy="900" rx="460" ry="90" transform="rotate(-12 1680 900)" fill="#44918a" opacity=".45"/>
+                  <ellipse cx="960" cy="980" rx="520" ry="50" fill="#0b3133" opacity=".5"/>
+                </g>
+                <!-- Shaved scalp under the incise drape -->
+                <use href="#sc-field" fill="url(#sc-skin)"/>
+                <use href="#sc-field" fill="url(#sc-iodine)"/>
+                <use href="#sc-field" fill="none" stroke="#082628" stroke-opacity=".55" stroke-width="22" filter="url(#sc-soft)"/>
+                <!-- Wound edge with scalp clips; the scalp flap is turned down over a sponge -->
+                <path d="M610 465C620 330 800 262 960 262 1130 262 1290 320 1312 452 1336 580 1282 742 1118 784 1004 812 850 810 740 760 640 714 602 580 610 465z" fill="url(#sc-wound)"/>
+                <use href="#sc-clip" transform="translate(612 468) rotate(4)"/>
+                <use href="#sc-clip" transform="translate(646 376) rotate(39)"/>
+                <use href="#sc-clip" transform="translate(729 313) rotate(63)"/>
+                <use href="#sc-clip" transform="translate(839 275) rotate(78)"/>
+                <use href="#sc-clip" transform="translate(960 262) rotate(90)"/>
+                <use href="#sc-clip" transform="translate(1084 273) rotate(101)"/>
+                <use href="#sc-clip" transform="translate(1192 308) rotate(116)"/>
+                <use href="#sc-clip" transform="translate(1272 367) rotate(139)"/>
+                <use href="#sc-clip" transform="translate(1312 456) rotate(170)"/>
+                <path d="M716 792C800 846 1124 850 1212 794 1244 846 1192 910 962 910 732 910 684 846 716 792z" fill="#a4443a"/>
+                <g transform="rotate(-2 964 868)">
+                  <rect x="800" y="830" width="330" height="72" rx="16" fill="#eee7e1" opacity=".93"/>
+                  <path d="M800 854h330M800 878h330M855 830v72M910 830v72M965 830v72M1020 830v72M1075 830v72" stroke="#d6d0ca" stroke-width="2"/>
+                </g>
+                <g fill="none" stroke-linecap="round">
+                  <path d="M806 904C796 960 780 1020 770 1080M962 910V1080M1120 902C1140 960 1160 1020 1176 1080" stroke="#e4d7b2" stroke-width="5"/>
+                  <path d="M806 904c-10-8-6-22 6-20M962 910c-10-8-6-22 6-20M1120 902c-10-8-6-22 6-20" stroke="#cfd6d8" stroke-width="4"/>
+                </g>
+                <!-- Bone edge, dura and the exposed cortex -->
+                <path d="M660 470C670 360 820 300 960 300 1110 300 1250 350 1270 460 1290 570 1240 700 1100 740 1000 768 860 766 760 720 670 678 650 560 660 470z" fill="url(#sc-bone)" stroke="#5a1a16" stroke-opacity=".45" stroke-width="5"/>
+                <path d="M684 472C694 380 830 324 960 324 1100 324 1226 370 1246 466 1264 566 1220 682 1092 718 998 744 866 742 772 700 692 662 676 556 684 472z" fill="url(#sc-dura)"/>
+                <g fill="#d9c98c" opacity=".85"><ellipse cx="672" cy="560" rx="6" ry="16"/><ellipse cx="1257" cy="560" rx="6" ry="14"/><ellipse cx="1020" cy="313" rx="16" ry="5"/></g>
+                <g fill="#3b2a22"><circle cx="684" cy="430" r="5"/><circle cx="1258" cy="470" r="5"/><circle cx="846" cy="736" r="5"/><circle cx="1086" cy="731" r="5"/></g>
+                <path d="M684 430L704 442M1258 470L1236 476M846 736L850 716M1086 731L1082 712" stroke="#15191b" stroke-width="2.5"/>
+                <path d="M700 600C712 640 734 672 764 692M1236 520C1240 560 1232 600 1214 640" fill="none" stroke="#8a4b45" stroke-width="2.5" opacity=".55"/>
+                <g clip-path="url(#sc-brain)">
+                  <rect x="700" y="360" width="540" height="360" fill="url(#sc-cortex)"/>
+                  <ellipse cx="1014" cy="530" rx="80" ry="60" fill="#b48c99" opacity=".5" filter="url(#sc-soft)"/>
+                  <path d="M730 418C850 404 980 410 1100 398M730 534C850 520 980 526 1090 515M744 650C850 640 960 650 1080 640M1152 392C1150 482 1152 580 1140 690" fill="none" stroke="#f8dccf" stroke-width="30" stroke-linecap="round" opacity=".42" filter="url(#sc-soft)"/>
+                  <g fill="none" stroke="#8b4a48" stroke-width="7" stroke-linecap="round" opacity=".8" filter="url(#sc-fine)">
+                    <path d="M716 470C800 455 860 482 930 468S1040 440 1100 455"/>
+                    <path d="M716 598C790 585 850 610 920 596S1020 570 1084 588"/>
+                    <path d="M1120 372C1110 420 1128 470 1112 520S1120 610 1104 704"/>
+                    <path d="M1190 380C1178 440 1196 500 1180 560S1190 650 1176 700"/>
+                    <path d="M856 384C866 412 850 440 862 466M800 520C830 530 860 524 884 536M980 640C1000 652 1030 646 1052 662M1000 398C990 420 1006 440 996 458" stroke-width="5"/>
+                  </g>
+                  <g fill="none" stroke-linecap="round">
+                    <path d="M1104 712C1118 612 1108 524 1116 470S1110 400 1120 350" stroke="#4b2e66" stroke-width="15"/>
+                    <path d="M770 660C826 606 884 560 930 470S962 400 976 350" stroke="#4b2e66" stroke-width="11"/>
+                    <path d="M930 470C900 452 870 456 840 440M1112 520C1080 530 1050 526 1020 542" stroke="#4b2e66" stroke-width="6"/>
+                    <path d="M1101 712C1115 612 1105 524 1113 470S1107 400 1117 350M768 656C824 602 882 556 928 466S960 398 974 350" stroke="#8a6aa6" stroke-width="3.5" opacity=".7"/>
+                  </g>
+                  <path d="M716 604C780 592 830 602 880 596 900 574 906 556 926 544M1084 590C1100 562 1110 542 1104 520M800 472C820 452 814 432 834 416M1000 458C1010 482 1030 492 1052 500M960 640C970 620 990 612 1000 596" fill="none" stroke="#c22f29" stroke-width="5" stroke-linecap="round"/>
+                  <g fill="#fff" filter="url(#sc-fine)">
+                    <ellipse cx="850" cy="512" rx="28" ry="5" transform="rotate(-6 850 512)" opacity=".55"/>
+                    <ellipse cx="1046" cy="404" rx="20" ry="4" opacity=".5"/>
+                    <ellipse cx="906" cy="636" rx="22" ry="4" transform="rotate(4 906 636)" opacity=".45"/>
+                    <ellipse cx="1152" cy="606" rx="4" ry="16" opacity=".45"/>
+                    <ellipse cx="788" cy="426" rx="14" ry="4" transform="rotate(-20 788 426)" opacity=".4"/>
+                    <ellipse cx="1000" cy="560" rx="16" ry="4" transform="rotate(-10 1000 560)" opacity=".4"/>
+                  </g>
+                  <use href="#sc-cortex-edge" fill="none" stroke="#3e1512" stroke-width="46" opacity=".55" filter="url(#sc-soft)"/>
+                </g>
+                <!-- Dural flap turned up toward the midline on stay sutures -->
+                <path d="M780 432C820 330 1110 318 1168 430 1120 388 840 388 780 432z" fill="#b39b8e" stroke="#8a7266" stroke-width="2"/>
+                <path d="M846 372C900 352 1000 346 1090 364" fill="none" stroke="#8a4b45" stroke-width="2" opacity=".55"/>
+                <ellipse cx="930" cy="368" rx="70" ry="7" fill="#fff" opacity=".22" filter="url(#sc-fine)"/>
+                <path d="M850 360L826 196M962 344V180M1080 360L1112 196" stroke="#16191b" stroke-width="2.4"/>
+                <!-- Cottonoids and their strings -->
+                <g fill="none" stroke="#23324c" stroke-width="3" stroke-linecap="round">
+                  <path d="M752 606C730 660 660 668 560 720S420 800 380 860"/>
+                  <path d="M866 698C840 744 806 790 790 860S760 1000 740 1080"/>
+                  <path d="M1197 656C1240 700 1300 740 1400 760S1560 820 1640 900"/>
+                </g>
+                <use href="#sc-pad" transform="translate(748 568) rotate(84)"/>
+                <use href="#sc-pad" transform="translate(904 694) rotate(-4)"/>
+                <use href="#sc-pad" transform="translate(1168 632) rotate(40)"/>
+                <!-- Patient reference frame on the head-holder arm, seen by the navigation camera -->
+                <g filter="url(#sc-far)">
+                  <path d="M-30 760L290 556" stroke="#353d41" stroke-width="26" stroke-linecap="round"/>
+                  <path d="M310 520V420M310 520L420 500M310 520L380 618M310 520L208 540" stroke="#40484d" stroke-width="15" stroke-linecap="round"/>
+                  <rect x="286" y="498" width="48" height="44" rx="9" fill="#363e42"/>
+                  <use href="#sc-ball" x="310" y="420"/>
+                  <use href="#sc-ball" x="420" y="500"/>
+                  <use href="#sc-ball" x="380" y="618"/>
+                  <use href="#sc-ball" x="208" y="540"/>
+                </g>
+                <!-- Suction in the left hand, tracked navigation probe in the right -->
+                <g transform="translate(806 642) rotate(139)">
+                  <rect x="150" y="-9" width="580" height="18" rx="8" fill="url(#sc-steel)"/>
+                  <rect x="420" y="-15" width="120" height="30" rx="10" fill="url(#sc-steel)"/>
+                  <ellipse cx="470" cy="-5" rx="11" ry="6" fill="#3a454a"/>
+                  <rect y="-6" width="170" height="12" rx="6" fill="url(#sc-steel)"/>
+                  <ellipse cx="2" rx="3" ry="5.5" fill="#2a2e30"/>
+                </g>
+                <g transform="translate(1012 522) rotate(23.6)">
+                  <path d="M0-1.8L330-5.5V5.5L0 1.8z" fill="url(#sc-steel)"/>
+                  <rect x="320" y="-12" width="190" height="24" rx="9" fill="#d5dbde"/>
+                  <path d="M362-12v24M384-12v24M406-12v24" stroke="#9aa5aa" stroke-width="3"/>
+                  <path d="M520 0L590-78M520 0L700-30M520 0L680 66M520 0L568 72" stroke="#424b50" stroke-width="14" stroke-linecap="round"/>
+                  <rect x="498" y="-15" width="46" height="30" rx="6" fill="#3a4247"/>
+                  <use href="#sc-ball" x="590" y="-78"/>
+                  <use href="#sc-ball" x="700" y="-30"/>
+                  <use href="#sc-ball" x="680" y="66"/>
+                  <use href="#sc-ball" x="568" y="72"/>
+                </g>
+                <rect width="1920" height="1080" fill="url(#sc-lamp)"/>
+              </g>
+              <rect width="1920" height="1080" fill="url(#sc-vig)"/>
+              <rect width="1920" height="1080" fill="#031012" opacity=".14"/>
+            </svg>
+            <div class="stage-hint" id="stageHint" hidden>Drag features here<small>or click any card on either side</small></div>
+          </div>
+        </div>
+      </div>
+      <div class="caption">
+        <div class="cap-left"><span>Simulated field: craniotomy for a left frontal tumor</span><span class="pill" id="exampleTag" hidden>Example layout. Click “Clear view” to start</span></div>
+        <span>16:9, same as the glasses display</span>
+      </div>
+    </section>
+
+    <aside class="tray" id="trayR" aria-label="Features: workflow, team and controls">
+      <form class="idea" id="ideaForm" autocomplete="off">
+        <label class="group-title" for="ideaInput">Not on the list? Write it in</label>
+        <div class="idea-row">
+          <input id="ideaInput" name="idea" maxlength="48" placeholder="e.g. Next tool reminder">
+          <button class="btn" type="submit">Add</button>
+        </div>
+      </form>
+    </aside>
+  </main>
+</div>
+<div class="ghost-layer" id="ghostLayer" aria-hidden="true"></div>
+
+<dialog id="startDlg" aria-labelledby="startTitle">
+  <form method="dialog" autocomplete="off">
+    <h2 id="startTitle">Before you start</h2>
+    <p>Enter the ID you were given, or your name. Leave it blank to stay anonymous.</p>
+    <label class="field">Your ID (optional)<input id="ridInput" maxlength="60" placeholder="e.g. NS-03"></label>
+    <p class="note">We record only the features you place, where you place them, and anything you write in.</p>
+    <div class="dlg-actions"><button class="btn primary" value="start">Start</button></div>
+  </form>
+</dialog>
+
+<dialog id="doneDlg" aria-labelledby="doneTitle">
+  <form method="dialog">
+    <h2 id="doneTitle"></h2>
+    <p id="doneText"></p>
+    <div class="dlg-actions"><button class="btn primary">OK</button></div>
+  </form>
+</dialog>
+
+<script>
+(() => {
+  'use strict';
+  document.documentElement.lang = 'en';
+  const W = 1600, H = 900, ZOOM = 2.5, KEY = 'ar-neuro-hud-en-v1';
+  // Google Apps Script web app that appends each submission to the Google Sheet
+  const SUBMIT_URL = '';
+  const RKEY = 'ar-neuro-survey-v1';
+  const $ = s => document.querySelector(s);
+  const stageWrap = $('#stageWrap'), stage = $('#stage'), ghostLayer = $('#ghostLayer');
+  const hint = $('#stageHint'), exampleTag = $('#exampleTag'), countEl = $('#count'), clearBtn = $('#clearBtn');
+  const trayL = $('#trayL'), trayR = $('#trayR'), ideaForm = $('#ideaForm'), ideaInput = $('#ideaInput');
+  const submitBtn = $('#submitBtn'), startDlg = $('#startDlg'), ridInput = $('#ridInput'), doneDlg = $('#doneDlg');
+
+  const ICON = {
+    vitals: '<path d="M3 12h4l2.2-5 3.6 10 2.2-5H21"/>',
+    patient: '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2.2"/><path d="M5.8 16.4c.6-1.7 1.8-2.5 3.2-2.5s2.6.8 3.2 2.5M14.5 10h4M14.5 13.5h3"/>',
+    labs: '<path d="M8 3h8M10 3v14.5a2 2 0 0 0 4 0V3M10 11h4"/>',
+    fluids: '<path d="M12 3.5c3 3.8 5.5 7 5.5 10a5.5 5.5 0 0 1-11 0c0-3 2.5-6.2 5.5-10z"/>',
+    ionm: '<path d="M13 2.5L5.5 13H11l-1 8.5L18.5 11H13z"/>',
+    mri: '<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><circle cx="12" cy="12" r="4"/>',
+    model: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/>',
+    nav: '<circle cx="12" cy="12" r="7"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><circle cx="12" cy="12" r="1.5"/>',
+    traj: '<circle cx="4.5" cy="4.5" r="1.8"/><circle cx="12" cy="3.5" r="1.8"/><circle cx="19.5" cy="4.5" r="1.8"/><path d="M5.6 6.3L11 18.5M12 5.5v13M18.4 6.3L13 18.5"/><circle cx="12" cy="20" r="1.2" fill="currentColor"/>',
+    anatomy: '<path d="M4 20c4-2 6-5 7-9M11 11c1-3 3-5 7-7M11 11c3 0 5 1 7 4"/>',
+    scope: '<path d="M3 21l6.5-6.5"/><circle cx="14.5" cy="9.5" r="6"/><circle cx="14.5" cy="9.5" r="2.2"/>',
+    us: '<path d="M12 6L5 16.5Q12 21 19 16.5z"/><path d="M9.5 3.5h5"/>',
+    zoom: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21M10.5 8v5M8 10.5h5"/>',
+    timer: '<circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.5M10 2.5h4M18.5 6.5l1.5-1.5"/>',
+    steps: '<path d="M4 6.5l1.5 1.5L8 5.5M4 12.5l1.5 1.5L8 11.5M11 7h9M11 13h9M11 19h9"/><circle cx="6" cy="19" r="1.5"/>',
+    count: '<path d="M5 5v14M9 5v14M13 5v14M17 5v14M3 15.5l18-7"/>',
+    record: '<rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10.5l5-3v9l-5-3z"/>',
+    remote: '<circle cx="12" cy="9" r="3.5"/><path d="M5 20c1-3.5 3.8-5.5 7-5.5s6 2 7 5.5"/>',
+    annotate: '<path d="M4 20l1-4L15.5 5.5a2.1 2.1 0 0 1 3 3L8 19z"/><path d="M13.5 7.5l3 3"/>',
+    live: '<circle cx="12" cy="12" r="2"/><path d="M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8"/>',
+    voice: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M9 21h6"/>',
+    msg: '<path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
+    idea: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/>',
+    check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>'
+  };
+  const icon = id => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[id]}</svg>`;
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+  const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), Math.max(lo, hi));
+
+  // Live readouts in the mock HUD
+  const T0 = Date.now(), BASE = {op: 5076, an: 6730, rec: 2530};
+  const clock = k => BASE[k] + Math.floor((Date.now() - T0) / 1000);
+  const hms = s => [Math.floor(s / 3600), Math.floor(s / 60) % 60, s % 60].map(v => String(v).padStart(2, '0')).join(':');
+  let hr = 72;
+
+  const F = {
+    vitals:   {name: 'Vital signs', desc: 'HR, BP, SpO₂ and more', w: 380},
+    ionm:     {name: 'Neuromonitoring', desc: 'MEP, SSEP, EEG', w: 380},
+    patient:  {name: 'Patient info', desc: 'Diagnosis, side, allergy', w: 400},
+    labs:     {name: 'Lab results', desc: 'CBC, sodium, glucose', w: 340},
+    fluids:   {name: 'Blood loss & fluids', desc: 'EBL, IV fluids, urine', w: 380},
+    nav:      {name: 'Stealth navigation', desc: 'Probe on MRI in 3 planes', w: 400},
+    traj:     {name: 'Planned trajectories', desc: 'Entry, path and target', w: 420, bare: true},
+    mri:      {name: 'Pre-op imaging', desc: 'MRI / CT on demand', w: 320},
+    model:    {name: '3D model', desc: 'Tumor, tracts, vessels', w: 340},
+    anatomy:  {name: 'Tumor overlay', desc: 'Drawn onto the brain', w: 340},
+    scope:    {name: 'Scope / microscope', desc: 'Picture-in-picture feed', w: 360},
+    us:       {name: 'Intra-op ultrasound', desc: 'Live ultrasound image', w: 360},
+    timer:    {name: 'Case timer', desc: 'Case & anesthesia time', w: 300},
+    steps:    {name: 'Surgical steps', desc: 'Current and next step', w: 360},
+    count:    {name: 'Sponge & tool count', desc: 'Cottonoids and needles', w: 380},
+    record:   {name: 'Recording & photos', desc: 'Video and still capture', w: 340},
+    remote:   {name: 'Remote consult', desc: 'Senior surgeon on video', w: 340},
+    annotate: {name: 'Remote annotation', desc: 'Expert marks your view', w: 360, bare: true},
+    live:     {name: 'Teaching stream', desc: 'Stream to trainees', w: 340},
+    msg:      {name: 'Messages', desc: 'Pathology and nursing', w: 380},
+    voice:    {name: 'Voice control', desc: 'Hands-free, just speak', w: 340},
+    zoom:     {name: 'Digital zoom', desc: 'Magnify the field', w: 250, bare: true},
+    idea:     {name: 'Surgeon idea', desc: '', w: 320, multi: true}
+  };
+  const GROUPS = [
+    {tray: trayL, title: 'Patient & monitoring', ids: ['vitals', 'ionm', 'patient', 'labs', 'fluids']},
+    {tray: trayL, title: 'Navigation & imaging', ids: ['nav', 'traj', 'mri', 'model', 'anatomy', 'scope', 'us']},
+    {tray: trayR, title: 'Workflow & records', ids: ['timer', 'steps', 'count', 'record']},
+    {tray: trayR, title: 'Team & controls', ids: ['remote', 'annotate', 'live', 'msg', 'voice', 'zoom']}
+  ];
+
+  const ECG = 'M0 34H26l5-5 5 5h10l3 4 5-30 5 36 4-10h13l6-6 7 6h11';
+  const MEP = 'M0 15H34L38 4 43 27 48 7 53 21 57 15H100', MEP_LOW = 'M0 15H34L38 10 43 21 48 11 53 18 57 15H100';
+  const SSEP = 'M0 15H30C34 15 36 4 40 4S45 26 50 26 55 15 60 15H100';
+  const ep = d => `<svg viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true"><path d="${d}"/></svg>`;
+
+  // Simplified MRI slices in radiological view (patient's left on the image right), with the tracked probe
+  const LESION = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r + 4}" fill="#5f5f5f"/><circle cx="${x}" cy="${y}" r="${r}" fill="#3a3a3a" stroke="#efefef" stroke-width="2"/><circle cx="${x}" cy="${y}" r="${r + 2.5}" fill="none" stroke="#ffd84d" stroke-width="1.1" stroke-dasharray="3 2"/>`;
+  const PROBE = (x, y, ox, oy, ax, ay) => `<path d="M${x} 0V${y - 4}M${x} ${y + 4}V100M0 ${y}H${x - 4}M${x + 4} ${y}H100" stroke="#45d3f2" stroke-width=".8" opacity=".8"/><path d="M${x} ${y}L${ox} ${oy}" stroke="#4be28c" stroke-width="2.6" stroke-linecap="round"/><path d="M${x} ${y}L${ax} ${ay}" stroke="#4be28c" stroke-width="1.3" stroke-dasharray="2 1.6"/><circle cx="${x}" cy="${y}" r="2" fill="#4be28c"/>`;
+  const VIEWS = {
+    ax: ['AX', 'Axial', `<ellipse cx="50" cy="52" rx="40" ry="46" fill="#a8a8a8"/><ellipse cx="50" cy="52" rx="37" ry="43" fill="#1c1c1c"/><ellipse cx="50" cy="52" rx="34.5" ry="40.5" fill="#787878"/><ellipse cx="50" cy="53" rx="26" ry="32" fill="#a0a0a0"/><path d="M50 11.5v15M50 80v12.5" stroke="#262626" stroke-width="1.6"/><path d="M45.5 40c-4.5 6-4.5 15 0 21 1.6-7 1.6-14 0-21zM54.5 40c4.5 6 4.5 15 0 21-1.6-7-1.6-14 0-21z" fill="#1d1d1d"/>${LESION(66, 32, 7)}${PROBE(64, 18, 80, 0, 65.6, 26)}`],
+    sag: ['SAG', 'Sagittal', `<ellipse cx="50" cy="46" rx="43" ry="37" fill="#a8a8a8"/><ellipse cx="50" cy="46" rx="40" ry="34" fill="#1c1c1c"/><path d="M57 72L55 100H67L68 72z" fill="#8a8a8a"/><ellipse cx="49" cy="42" rx="37" ry="29" fill="#787878"/><ellipse cx="68" cy="64" rx="12" ry="7.5" fill="#6c6c6c"/><path d="M34 46C40 36 60 34 70 42" fill="none" stroke="#d2d2d2" stroke-width="3.2" stroke-linecap="round"/><path d="M36 47C44 42 58 41 66 45 58 47.5 44 48.5 36 47z" fill="#1d1d1d"/>${LESION(33, 28, 6)}${PROBE(33, 15, 27, 0, 33, 21)}`],
+    cor: ['COR', 'Coronal', `<ellipse cx="50" cy="50" rx="41" ry="43" fill="#a8a8a8"/><ellipse cx="50" cy="50" rx="38" ry="40" fill="#1c1c1c"/><ellipse cx="50" cy="50" rx="35.5" ry="37.5" fill="#787878"/><ellipse cx="50" cy="47" rx="27" ry="28" fill="#a0a0a0"/><path d="M50 12.5v20" stroke="#262626" stroke-width="1.6"/><path d="M15.5 63c6-3 13-2 18 2M84.5 63c-6-3-13-2-18 2" fill="none" stroke="#2a2a2a" stroke-width="1.5"/><path d="M46.5 41c-4 2-6 7-4.5 11 2.5-1.5 4.5-6 4.5-11zM53.5 41c4 2 6 7 4.5 11-2.5-1.5-4.5-6-4.5-11z" fill="#1d1d1d"/>${LESION(64, 30, 6)}${PROBE(63, 16, 76, 0, 63.6, 23)}`]
+  };
+  const mriView = k => `<svg class="mv" viewBox="0 0 100 100" role="img" aria-label="${VIEWS[k][1]} MRI with probe position (illustration)">${VIEWS[k][2]}<text x="6" y="14">${VIEWS[k][0]}</text></svg>`;
+  const SULCI = Array.from({length: 26}, (_, i) => {
+    const a = (i + .5) / 26 * 2 * Math.PI, b = a + (i % 2 ? .07 : -.07);
+    if (Math.abs(Math.cos(a)) < .12) return '';
+    return `M${(130 + 72 * Math.cos(a)).toFixed(1)} ${(106 + 86 * Math.sin(a)).toFixed(1)}L${(130 + 60 * Math.cos(b)).toFixed(1)} ${(106 + 72 * Math.sin(b)).toFixed(1)}`;
+  }).join('');
+
+  const BODY = {
+    vitals: () => `
+      <div class="vit-hr">
+        <div class="read c-hr"><span class="lab">HR</span><b class="num xl" data-hr>${hr}</b><span class="unit">bpm</span></div>
+        <svg class="ecg" viewBox="0 0 200 52" preserveAspectRatio="none" aria-hidden="true"><g class="ecg-run"><path d="${ECG}"/><path d="${ECG}" transform="translate(100 0)"/><path d="${ECG}" transform="translate(200 0)"/></g></svg>
+      </div>
+      <div class="vit-grid">
+        <div class="read c-bp"><span class="lab">NIBP</span><b class="num">118/76</b><span class="unit">mmHg</span></div>
+        <div class="read c-spo2"><span class="lab">SpO₂</span><b class="num">98</b><span class="unit">%</span></div>
+        <div class="read c-co2"><span class="lab">EtCO₂</span><b class="num">35</b><span class="unit">mmHg</span></div>
+        <div class="read"><span class="lab">Temp</span><b class="num">36.6</b><span class="unit">°C</span></div>
+      </div>`,
+    ionm: () => `
+      <ul class="eps">
+        <li class="warn"><span>MEP · R hand</span>${ep(MEP_LOW)}<em>−30%</em></li>
+        <li><span>MEP · R leg</span>${ep(MEP)}<em>Stable</em></li>
+        <li><span>SSEP</span>${ep(SSEP)}<em>Stable</em></li>
+      </ul>
+      <div class="meta">EEG: no seizure activity</div>`,
+    patient: () => `
+      <div class="pt-name"><b>John Doe</b><span>M · 56 y · 68 kg</span></div>
+      <dl class="kv"><dt>Diagnosis</dt><dd>Left frontal glioma (3.1 cm)</dd><dt>Procedure</dt><dd>Craniotomy, tumor resection</dd><dt>Blood type</dt><dd>A Rh+</dd></dl>
+      <div class="tags"><span class="tag side">Side: LEFT</span><span class="tag warn">Allergy: penicillin</span></div>`,
+    labs: () => `
+      <dl class="kv kv-num">
+        <dt>Hb</dt><dd><b class="num">13.1</b> g/dL</dd>
+        <dt>PLT</dt><dd><b class="num">230</b> ×10³/µL</dd>
+        <dt>Na⁺</dt><dd><b class="num">139</b> mmol/L</dd>
+        <dt>Glucose</dt><dd class="warn-text"><b class="num">186</b> mg/dL ↑</dd>
+        <dt>INR</dt><dd><b class="num">1.0</b></dd>
+      </dl>
+      <div class="meta">Intra-op ABG · 10:42</div>`,
+    fluids: () => `
+      <div class="read c-bp"><span class="lab">Est. blood loss</span><b class="num xl">250</b><span class="unit">mL</span></div>
+      <div class="bar" role="img" aria-label="Blood loss 250 mL, alert at 600 mL"><i style="width:41.7%"></i></div>
+      <div class="meta row"><span>0</span><span>Alert at 600 mL</span></div>
+      <div class="trio">
+        <div class="read"><span class="lab">IV fluids</span><b class="num">1200</b><span class="unit">mL</span></div>
+        <div class="read"><span class="lab">Blood</span><b class="num">0</b><span class="unit">mL</span></div>
+        <div class="read"><span class="lab">Urine</span><b class="num">900</b><span class="unit">mL</span></div>
+      </div>`,
+    nav: () => `
+      <div class="tri">${['ax', 'sag', 'cor'].map(mriView).join('')}</div>
+      <div class="nav-read">
+        <div class="read"><span class="lab">Probe to tumor</span><b class="num xl">8.6</b><span class="unit">mm</span></div>
+        <div class="read"><span class="lab">Accuracy</span><b class="num">1.1</b><span class="unit">mm</span></div>
+      </div>
+      <div class="meta nav-ok"><i class="dot-ok"></i>Probe and reference tracked</div>`,
+    mri: () => `
+      <svg class="img" viewBox="0 0 260 210" role="img" aria-label="Axial MRI slice with tumor (illustration)">
+        <rect width="260" height="210" fill="#030404"/>
+        <ellipse cx="130" cy="106" rx="84" ry="98" fill="#a8a8a8"/>
+        <ellipse cx="130" cy="106" rx="78" ry="92" fill="#1c1c1c"/>
+        <ellipse cx="130" cy="106" rx="74.5" ry="88.5" fill="#2c2c2c"/>
+        <ellipse cx="130" cy="106" rx="72" ry="86" fill="#7a7a7a"/>
+        <ellipse cx="130" cy="108" rx="56" ry="70" fill="#a2a2a2"/>
+        <path d="${SULCI}" fill="none" stroke="#3a3a3a" stroke-width="2.2" stroke-linecap="round"/>
+        <path d="M130 20v40M130 152v40" stroke="#262626" stroke-width="3"/>
+        <path d="M120 78C108 92 108 122 118 140 123 124 124 96 120 78zM140 78C152 92 152 122 142 140 137 124 136 96 140 78z" fill="#1d1d1d"/>
+        <path d="M164 41c13 0 22 9 21 22-1 12-10 19-22 18-11-1-19-9-18-20 1-12 8-20 19-20z" fill="#5e5e5e"/>
+        <circle cx="164" cy="62" r="12" fill="#3a3a3a" stroke="#f2f2f2" stroke-width="3.5"/>
+        <circle cx="164" cy="62" r="16.5" fill="none" class="s-mark" stroke-width="2" stroke-dasharray="5 4"/>
+        <text class="mri-lr" x="14" y="111">R</text><text class="mri-lr" x="236" y="111">L</text>
+      </svg>
+      <div class="meta row"><span>T1 + contrast · axial</span><span class="num sm">88 / 176</span></div>`,
+    model: () => `
+      <svg class="img model-svg" viewBox="0 0 300 180" role="img" aria-label="3D brain model with tumor and motor tract (illustration)">
+        <path d="M32 96C24 60 58 28 110 22 168 14 236 30 266 70 280 90 276 116 258 124 246 130 232 126 222 122 210 132 186 138 164 136 150 150 112 154 88 140 64 134 40 120 32 96z" fill="rgba(232,160,150,.22)" stroke="rgba(255,200,190,.85)" stroke-width="2"/>
+        <ellipse cx="232" cy="142" rx="30" ry="17" fill="rgba(232,160,150,.16)" stroke="rgba(255,200,190,.6)" stroke-width="1.5"/>
+        <path d="M170 132c2 18 4 32 6 48h16c-2-16-3-30-2-48z" fill="rgba(232,160,150,.16)" stroke="rgba(255,200,190,.6)" stroke-width="1.5"/>
+        <path d="M84 116C118 102 152 98 196 100M176 22C170 48 166 72 160 98M152 22C148 46 144 68 136 94M58 62C80 56 100 58 120 52M64 92C84 88 100 90 116 86M210 136c8 2 18 2 28 1M212 146c8 2 20 2 32 0" fill="none" stroke="rgba(255,200,190,.45)" stroke-width="1.6" stroke-linecap="round"/>
+        <path class="s-tract" d="M156 30C158 70 168 110 175 168M164 28C166 70 174 110 181 168M172 28C174 70 180 110 187 168" fill="none" stroke-width="3" stroke-linecap="round" opacity=".9"/>
+        <path class="s-art" d="M72 122C104 108 144 100 190 102M100 112C104 98 100 88 104 78M168 101C174 88 172 76 180 64" fill="none" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="134" cy="72" r="17" fill="rgba(255,190,70,.72)" class="s-mark" stroke-width="2"/>
+      </svg>
+      <div class="legend"><span><i class="sw sw-tu"></i>Tumor 3.1 cm</span><span><i class="sw sw-tract"></i>Motor tract</span><span><i class="sw sw-art"></i>MCA</span></div>
+      <div class="meta">6 mm from motor tract</div>`,
+    anatomy: () => `
+      <svg class="img" viewBox="0 0 300 130" aria-hidden="true">
+        <rect width="300" height="130" rx="12" fill="rgba(226,170,140,.16)"/>
+        <path d="M8 44C60 34 110 54 160 42S240 34 292 46M8 92C70 82 120 100 170 88S240 80 292 94M226 4C218 40 234 80 222 126" fill="none" stroke="rgba(150,80,76,.55)" stroke-width="3" stroke-linecap="round"/>
+        <path class="s-tract" d="M206 4C198 44 212 84 200 126" fill="none" stroke-width="12" stroke-linecap="round" opacity=".45"/>
+        <path class="s-vein" d="M14 118C56 100 92 104 128 94" fill="none" stroke-width="6" stroke-linecap="round"/>
+        <path d="M104 64C104 42 124 32 144 34 168 36 180 52 176 70 172 90 152 98 132 94 114 90 104 82 104 64z" fill="rgba(255,216,77,.12)" class="s-mark" stroke-width="3" stroke-dasharray="8 6"/>
+      </svg>
+      <div class="legend"><span><i class="sw sw-tu"></i>Tumor margin</span><span><i class="sw sw-tract"></i>Motor tract</span><span><i class="sw sw-vein"></i>Vein</span></div>
+      <div class="meta">Registered to the field, adjustable opacity</div>`,
+    scope: () => `
+      <svg class="img" viewBox="0 0 320 180" role="img" aria-label="Microscope view (illustration)">
+        <defs>
+          <radialGradient id="g-scope" cx="46%" cy="42%" r="62%"><stop offset="0" stop-color="#f5ccbb"/><stop offset=".6" stop-color="#d8978a"/><stop offset="1" stop-color="#561d1d"/></radialGradient>
+          <clipPath id="c-scope"><circle cx="160" cy="90" r="86"/></clipPath>
+        </defs>
+        <rect width="320" height="180" fill="#000"/>
+        <g clip-path="url(#c-scope)">
+          <circle cx="160" cy="90" r="86" fill="url(#g-scope)"/>
+          <path d="M74 66c30 8 60 4 90 14s56 6 82-2" fill="none" stroke="#8a4646" stroke-width="5" opacity=".6"/>
+          <ellipse cx="190" cy="106" rx="36" ry="25" fill="#b0919a" opacity=".8"/>
+          <path d="M78 124c34-12 64-8 96-20" fill="none" stroke="#4b2e66" stroke-width="8" stroke-linecap="round"/>
+          <path d="M100 46c18 10 28 22 34 40" fill="none" stroke="#c22f29" stroke-width="3.5" stroke-linecap="round"/>
+          <ellipse cx="128" cy="68" rx="24" ry="7" fill="#fff" opacity=".42"/>
+          <ellipse cx="206" cy="98" rx="10" ry="4" fill="#fff" opacity=".3"/>
+          <path d="M58 178l70-58" stroke="#98a3a7" stroke-width="12" stroke-linecap="round"/>
+          <path d="M282 152l-80-38M288 136l-84-28" stroke="#dde3e5" stroke-width="5" stroke-linecap="round"/>
+          <circle cx="160" cy="90" r="86" fill="none" stroke="#000" stroke-width="8" opacity=".55"/>
+        </g>
+      </svg>
+      <div class="meta row"><span>Microscope · 6×</span><span>4K</span></div>`,
+    us: () => `
+      <svg class="img" viewBox="0 0 300 192" role="img" aria-label="Intra-op ultrasound (illustration)">
+        <defs>
+          <filter id="f-us" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".9 .35" numOctaves="2" seed="4"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="table" tableValues="1 1"/></feComponentTransfer></filter>
+          <clipPath id="c-us"><path d="M150 10L40 150A178 178 0 0 0 260 150z"/></clipPath>
+          <linearGradient id="g-usfade" x1="0" y1="0" x2="0" y2="1"><stop offset=".3" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".75"/></linearGradient>
+        </defs>
+        <rect width="300" height="192" fill="#000"/>
+        <g clip-path="url(#c-us)">
+          <rect width="300" height="192" filter="url(#f-us)" opacity=".6"/>
+          <rect width="300" height="192" fill="url(#g-usfade)"/>
+          <ellipse cx="178" cy="132" rx="28" ry="9" fill="#000" opacity=".85"/>
+          <ellipse cx="128" cy="82" rx="30" ry="22" fill="#fff" opacity=".34"/>
+          <ellipse cx="134" cy="86" rx="33" ry="25" fill="none" class="s-mark" stroke-width="2" stroke-dasharray="6 5"/>
+        </g>
+        <path d="M150 10L40 150A178 178 0 0 0 260 150z" fill="none" stroke="rgba(255,255,255,.2)"/>
+      </svg>
+      <div class="meta row"><span>Yellow: MRI outline</span><span>Depth 6 cm</span></div>`,
+    zoom: () => `<div class="lens"><span class="lens-x">2.5×</span></div>`,
+    timer: () => `
+      <div class="tm-main"><span class="lab">Case time</span><b class="num xxl" data-clock="op">${hms(clock('op'))}</b></div>
+      <div class="tm-row"><span class="lab">Anesthesia</span><b class="num" data-clock="an">${hms(clock('an'))}</b></div>
+      <div class="tm-row"><span class="lab">Incision at</span><b class="num">09:18</b></div>`,
+    steps: () => `
+      <ol class="steps">
+        <li class="done">Register navigation</li>
+        <li class="done">Craniotomy</li>
+        <li class="done">Open dura</li>
+        <li class="now">Tumor resection<span class="now-tag">Now</span></li>
+        <li>Hemostasis and closure</li>
+      </ol>`,
+    count: () => `
+      <ul class="cnt">
+        <li class="warn"><span>Cottonoids</span><b class="num">24 / 26</b><em>2 in field</em></li>
+        <li class="ok"><span>Needles</span><b class="num">8 / 8</b><em>Correct</em></li>
+        <li class="ok"><span>Instruments</span><b class="num">42 / 42</b><em>Correct</em></li>
+      </ul>`,
+    record: () => `
+      <div class="rec"><span class="rec-dot"></span><span>Recording</span><b class="num" data-clock="rec">${hms(clock('rec'))}</b></div>
+      <div class="meta">6 stills · say “photo” to take one</div>`,
+    remote: () => `
+      <div class="call">
+        <svg class="img" viewBox="0 0 320 170" aria-hidden="true">
+          <defs><linearGradient id="g-call" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#30434f"/><stop offset="1" stop-color="#121b21"/></linearGradient></defs>
+          <rect width="320" height="170" fill="url(#g-call)"/>
+          <circle cx="160" cy="70" r="30" fill="#9fb2bc"/>
+          <path d="M94 170c4-46 34-64 66-64s62 18 66 64z" fill="#e4ebee"/>
+          <path d="M144 108l16 30 16-30z" fill="#4a7f9e"/>
+        </svg>
+        <div class="call-bar"><i class="dot-ok"></i><b>Dr. Chen</b><span>Neurosurgery</span></div>
+      </div>`,
+    traj: () => `
+      <svg class="traj" viewBox="0 0 420 215" aria-hidden="true">
+        ${[['T1', 52, 66, 232, 182, 34, 73, 'end'], ['T3', 300, 34, 274, 186, 300, 14, 'middle'], ['T4', 392, 108, 292, 192, 392, 86, 'middle'], ['T2', 150, 38, 250, 196, 150, 18, 'middle', 1]]
+          .map(([n, x1, y1, x2, y2, tx, ty, a, on]) => `<g class="tj${on ? ' on' : ''}"><path d="M${x1} ${y1}L${x2} ${y2}"/><circle class="tj-in" cx="${x1}" cy="${y1}" r="${on ? 11 : 9}"/><circle class="tj-tg" cx="${x2}" cy="${y2}" r="${on ? 7 : 5.5}"/><text x="${tx}" y="${ty}" text-anchor="${a}">${n}</text></g>`).join('')}
+      </svg>
+      <div class="traj-note"><b>T2</b>38 mm to target · 0.9 mm off path</div>`,
+    annotate: () => `
+      <svg class="anno" viewBox="0 0 360 190" aria-hidden="true">
+        <path d="M132 112c-12-38 44-64 112-58 62 6 84 42 56 72-28 30-106 36-146 20-16-6-24-18-22-30"/>
+        <path d="M34 26c34 10 62 30 84 64M118 90l-3-22M118 90l-19-11"/>
+      </svg>
+      <div class="anno-note"><span class="av">C</span>Stop here, motor tract below</div>`,
+    live: () => `
+      <div class="live-top"><span class="rec-dot"></span><b class="on-air">LIVE</b><b class="num">32</b><span class="lab">watching</span></div>
+      <div class="q"><span class="lab">Trainee question</span>How much has the brain shifted?</div>
+      <div class="meta">1 more question waiting</div>`,
+    voice: () => `
+      <div class="voice"><span class="mic">${icon('voice')}</span><span class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></div>
+      <div class="said">“Show sagittal”</div>
+      <div class="meta">Also: photo · zoom · next slice</div>`,
+    msg: () => `
+      <ul class="msgs">
+        <li><div class="msg-top"><b>Pathology</b><span class="num sm">10:42</span></div>Frozen section: high-grade glioma</li>
+        <li><div class="msg-top"><b>Pre-op</b><span class="num sm">10:35</span></div>Next patient is in holding</li>
+      </ul>`,
+    idea: it => `<p class="idea-text">${esc(it.text || '')}</p>`
+  };
+
+  let S = 1, z = 10, seq = 0, items = [], example = false, undoSnap = null, undoTimer = 0, suppressClick = false;
+  let respondent = null, sending = false, submitted = false;
+  const els = new Map(), cards = [];
+  const byKey = k => items.find(i => i.key === k);
+  const placedOf = fid => F[fid].multi ? null : items.find(i => i.fid === fid);
+  const titleOf = it => it.fid === 'idea' ? `Surgeon idea: ${it.text}` : F[it.fid].name;
+
+  // Scale the 1600x900 canvas to the frame
+  function fit() { S = stageWrap.clientWidth / W || 1; stage.style.transform = `scale(${S})`; }
+  fit();
+  new ResizeObserver(fit).observe(stageWrap);
+  const toStage = e => { const r = stageWrap.getBoundingClientRect(); return {x: (e.clientX - r.left) / S, y: (e.clientY - r.top) / S}; };
+  const overStage = e => { const r = stageWrap.getBoundingClientRect(); return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom; };
+
+  let sceneCache = '';
+  const sceneURL = () => sceneCache || (sceneCache = `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(new XMLSerializer().serializeToString($('#scene')))}")`);
+
+  function makeWidget(it) {
+    const f = F[it.fid];
+    const el = document.createElement('div');
+    el.className = 'w' + (f.bare ? ' bare' : '') + (it.fid === 'idea' ? ' w-idea' : '');
+    el.style.width = f.w + 'px';
+    el.innerHTML = `<div class="w-head">${icon(it.fid)}<span class="w-name">${f.name}</span><button class="w-x" type="button" aria-label="Remove ${esc(titleOf(it))}">×</button></div>${BODY[it.fid](it)}`;
+    return el;
+  }
+
+  function mount(it) {
+    const el = makeWidget(it);
+    el.dataset.key = it.key;
+    el.tabIndex = 0;
+    el.setAttribute('role', 'group');
+    el.setAttribute('aria-label', `${titleOf(it)} (drag to move; arrow keys nudge it, Delete removes it)`);
+    el.style.zIndex = ++z;
+    stage.append(el);
+    els.set(it.key, el);
+    if (it.fid === 'zoom') {
+      const lens = el.querySelector('.lens');
+      lens.style.backgroundImage = sceneURL();
+      lens.style.backgroundSize = `${W * ZOOM}px ${H * ZOOM}px`;
+    }
+    return el;
+  }
+
+  function place(it) {
+    const el = els.get(it.key);
+    if (!el) return;
+    it.x = Math.round(clamp(it.x, 0, W - el.offsetWidth));
+    it.y = Math.round(clamp(it.y, 0, H - el.offsetHeight));
+    el.style.left = it.x + 'px';
+    el.style.top = it.y + 'px';
+    if (it.fid === 'zoom') {
+      // The lens shows the scene underneath it, magnified
+      const lens = el.querySelector('.lens'), r = lens.clientWidth / 2;
+      const cx = it.x + lens.offsetLeft + lens.clientLeft + r, cy = it.y + lens.offsetTop + lens.clientTop + r;
+      lens.style.backgroundPosition = `${r - cx * ZOOM}px ${r - cy * ZOOM}px`;
+    }
+  }
+
+  // First free spot, preferring the left and right edges so the operative field stays clear
+  function freeSpot(self, el) {
+    const w = el.offsetWidth, h = el.offsetHeight, M = 24, G = 14, right = W - M - w;
+    const rects = items.filter(i => i !== self).map(i => { const e = els.get(i.key); return {x: i.x, y: i.y, w: e.offsetWidth, h: e.offsetHeight}; });
+    const free = (x, y) => rects.every(r => x + w + G <= r.x || r.x + r.w + G <= x || y + h + G <= r.y || r.y + r.h + G <= y);
+    const cands = [];
+    for (let y = M; y <= H - M - h; y += 18) {
+      cands.push([M, y, 0], [right, y, 0]);
+      for (let x = M + 18; x < right; x += 18) cands.push([x, y, Math.min(x - M, right - x)]);
+    }
+    cands.sort((a, b) => a[2] - b[2] || a[1] - b[1]);
+    const hit = cands.find(([x, y]) => free(x, y));
+    return hit ? {x: hit[0], y: hit[1]} : {x: (W - w) / 2 + 40 * (Math.random() - .5), y: (H - h) / 2 + 30 * (Math.random() - .5)};
+  }
+
+  function pulse(el) {
+    if (!el || !el.animate) return;
+    el.animate([{boxShadow: '0 0 0 0 rgba(255, 216, 77, .85)'}, {boxShadow: '0 0 0 22px rgba(255, 216, 77, 0)'}], {duration: 650, easing: 'ease-out'});
+  }
+
+  function add(fid, x, y, text) {
+    const it = {key: 'k' + (++seq), fid, x: x ?? 0, y: y ?? 0, text};
+    items.push(it);
+    const el = mount(it);
+    if (x == null) Object.assign(it, freeSpot(it, el));
+    place(it);
+    changed();
+    pulse(el);
+  }
+
+  function restore(s) {
+    const it = {key: 'k' + (++seq), fid: s.fid, x: s.x, y: s.y, text: s.text};
+    items.push(it);
+    mount(it);
+    place(it);
+  }
+
+  function remove(it, focusAfter) {
+    const el = els.get(it.key);
+    if (!el) return;
+    els.delete(it.key);
+    items = items.filter(i => i !== it);
+    el.classList.add('gone');
+    el.style.pointerEvents = 'none';
+    setTimeout(() => el.remove(), 180);
+    changed();
+    if (focusAfter) (cards.find(c => c.dataset.fid === it.fid) || ideaInput).focus({preventScroll: true});
+  }
+
+  function changed() { example = false; endUndo(); syncUI(); save(); }
+
+  function syncUI() {
+    for (const c of cards) {
+      const f = F[c.dataset.fid], on = !!placedOf(c.dataset.fid);
+      c.classList.toggle('placed', on);
+      c.setAttribute('aria-label', `${f.name}, ${f.desc}${on ? '. In view' : ''}`);
+    }
+    countEl.textContent = items.length;
+    hint.hidden = items.length > 0;
+    exampleTag.hidden = !example;
+    clearBtn.disabled = !items.length && !undoSnap;
+    submitBtn.disabled = !items.length || sending || submitted;
+    submitBtn.textContent = sending ? 'Submitting…' : submitted ? 'Submitted' : 'Submit';
+  }
+
+  function save() {
+    // Any saved change means the layout differs from the last submission
+    if (submitted) { submitted = false; syncUI(); }
+    try { localStorage.setItem(KEY, JSON.stringify({example, items: items.map(({fid, x, y, text}) => ({fid, x, y, text}))})); } catch (e) {}
+  }
+
+  function load() {
+    let d = null;
+    try { d = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
+    if (!d || !Array.isArray(d.items)) return false;
+    const seen = new Set();
+    for (const s of d.items) {
+      if (!s || !F[s.fid] || !Number.isFinite(s.x) || !Number.isFinite(s.y)) continue;
+      if (s.fid === 'idea') {
+        if (typeof s.text !== 'string' || !s.text.trim()) continue;
+      } else if (seen.has(s.fid)) continue;
+      seen.add(s.fid);
+      restore({fid: s.fid, x: s.x, y: s.y, text: s.fid === 'idea' ? s.text.slice(0, 60) : undefined});
+    }
+    example = !!d.example;
+    return true;
+  }
+
+  // Trays
+  for (const g of GROUPS) {
+    const sec = document.createElement('section');
+    sec.className = 'group';
+    sec.innerHTML = `<h2 class="group-title">${g.title}</h2><div class="cards"></div>`;
+    const list = sec.lastElementChild;
+    for (const id of g.ids) {
+      const f = F[id], b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'card';
+      b.dataset.fid = id;
+      b.innerHTML = `<span class="card-ico">${icon(id)}</span><span class="card-text"><span class="card-name">${f.name}</span><span class="card-desc">${f.desc}</span></span><span class="card-state">${icon('check')}</span>`;
+      b.addEventListener('pointerdown', cardDown);
+      b.addEventListener('click', cardClick);
+      list.append(b);
+      cards.push(b);
+    }
+    if (g.tray === trayR) trayR.insertBefore(sec, ideaForm); else trayL.append(sec);
+  }
+
+  // Drag a card from a tray into the view
+  function cardDown(e) {
+    if (e.button !== 0) return;
+    const card = e.currentTarget, fid = card.dataset.fid, f = F[fid];
+    if (placedOf(fid)) return;
+    e.preventDefault();
+    const sx = e.clientX, sy = e.clientY, pid = e.pointerId;
+    try { card.setPointerCapture(pid); } catch (err) {}
+    let ghost = null;
+    const move = ev => {
+      if (ev.pointerId !== pid) return;
+      if (!ghost) {
+        if (Math.hypot(ev.clientX - sx, ev.clientY - sy) < 6) return;
+        ghost = makeWidget({fid});
+        ghost.style.transform = `scale(${S})`;
+        ghostLayer.append(ghost);
+        document.body.classList.add('dragging');
+      }
+      ghost.style.left = ev.clientX - f.w / 2 * S + 'px';
+      ghost.style.top = ev.clientY - 28 * S + 'px';
+      stageWrap.classList.toggle('drop-ready', overStage(ev));
+    };
+    const end = ev => {
+      if (ev.pointerId !== pid) return;
+      card.removeEventListener('pointermove', move);
+      card.removeEventListener('pointerup', end);
+      card.removeEventListener('pointercancel', end);
+      if (!ghost) return;
+      ghost.remove();
+      document.body.classList.remove('dragging');
+      stageWrap.classList.remove('drop-ready');
+      suppressClick = true;
+      setTimeout(() => { suppressClick = false; }, 0);
+      if (ev.type === 'pointerup' && overStage(ev)) { const p = toStage(ev); add(fid, p.x - f.w / 2, p.y - 28); }
+    };
+    card.addEventListener('pointermove', move);
+    card.addEventListener('pointerup', end);
+    card.addEventListener('pointercancel', end);
+  }
+
+  function cardClick(e) {
+    if (suppressClick) return;
+    const fid = e.currentTarget.dataset.fid, it = placedOf(fid);
+    if (it) {
+      const el = els.get(it.key);
+      el.style.zIndex = ++z;
+      el.focus({preventScroll: true});
+      pulse(el);
+      return;
+    }
+    add(fid);
+  }
+
+  // Move widgets inside the view; dropping one outside removes it
+  let drag = null;
+  stage.addEventListener('pointerdown', e => {
+    const el = e.target.closest('.w');
+    if (!el || e.button !== 0 || e.target.closest('.w-x')) return;
+    const it = byKey(el.dataset.key);
+    if (!it) return;
+    e.preventDefault();
+    el.focus({preventScroll: true});
+    try { el.setPointerCapture(e.pointerId); } catch (err) {}
+    const p = toStage(e);
+    drag = {el, it, pid: e.pointerId, dx: p.x - it.x, dy: p.y - it.y, sx: e.clientX, sy: e.clientY, moved: false, out: false};
+    el.style.zIndex = ++z;
+  });
+  stage.addEventListener('pointermove', e => {
+    if (!drag || e.pointerId !== drag.pid) return;
+    if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 3) return;
+    drag.moved = true;
+    drag.el.classList.add('moving');
+    const p = toStage(e);
+    drag.it.x = p.x - drag.dx;
+    drag.it.y = p.y - drag.dy;
+    place(drag.it);
+    drag.out = !overStage(e);
+    drag.el.classList.toggle('leaving', drag.out);
+  });
+  const endDrag = e => {
+    if (!drag || e.pointerId !== drag.pid) return;
+    const {el, it, moved, out} = drag;
+    drag = null;
+    el.classList.remove('moving', 'leaving');
+    if (!moved) return;
+    if (out && e.type === 'pointerup') remove(it); else changed();
+  };
+  stage.addEventListener('pointerup', endDrag);
+  stage.addEventListener('pointercancel', endDrag);
+
+  stage.addEventListener('click', e => {
+    const x = e.target.closest('.w-x');
+    if (!x) return;
+    const it = byKey(x.closest('.w').dataset.key);
+    if (it) remove(it, e.detail === 0);
+  });
+
+  stage.addEventListener('keydown', e => {
+    const el = e.target;
+    if (!el.classList || !el.classList.contains('w')) return;
+    const it = byKey(el.dataset.key);
+    if (!it) return;
+    const step = e.shiftKey ? 60 : 12;
+    const d = {ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step]}[e.key];
+    if (d) { e.preventDefault(); it.x += d[0]; it.y += d[1]; place(it); changed(); }
+    else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); remove(it, true); }
+  });
+
+  ideaForm.addEventListener('submit', e => {
+    e.preventDefault();
+    const text = ideaInput.value.trim();
+    if (!text) { ideaInput.focus(); return; }
+    add('idea', null, null, text.slice(0, 48));
+    ideaInput.value = '';
+  });
+
+  // Clear, with an 8-second undo
+  function endUndo() {
+    if (!undoSnap) return;
+    undoSnap = null;
+    clearTimeout(undoTimer);
+    clearBtn.textContent = 'Clear view';
+    clearBtn.classList.remove('undo');
+  }
+  clearBtn.addEventListener('click', () => {
+    if (undoSnap) {
+      const snap = undoSnap;
+      endUndo();
+      snap.items.forEach(restore);
+      example = snap.example;
+      syncUI();
+      save();
+      return;
+    }
+    if (!items.length) return;
+    undoSnap = {example, items: items.map(({fid, x, y, text}) => ({fid, x, y, text}))};
+    for (const el of els.values()) el.remove();
+    els.clear();
+    items = [];
+    example = false;
+    clearBtn.textContent = 'Undo clear';
+    clearBtn.classList.add('undo');
+    undoTimer = setTimeout(() => { endUndo(); syncUI(); }, 8000);
+    syncUI();
+    save();
+  });
+
+  // Start: the last layout on this device, or a marked example
+  if (!load()) {
+    [{fid: 'timer', x: 24, y: 24}, {fid: 'vitals', x: W - 24 - F.vitals.w, y: 24}, {fid: 'nav', x: 24, y: H}].forEach(restore);
+    example = true;
+  }
+  // Respondent ID: asked once per device, blank means anonymous
+  try { respondent = JSON.parse(localStorage.getItem(RKEY) || 'null'); } catch (e) {}
+  if (!respondent || typeof respondent.sid !== 'string') {
+    respondent = null;
+    startDlg.addEventListener('close', () => {
+      respondent = {rid: ridInput.value.trim().slice(0, 60), sid: Math.random().toString(36).slice(2, 10) + Date.now().toString(36)};
+      try { localStorage.setItem(RKEY, JSON.stringify(respondent)); } catch (e) {}
+      if (example) {
+        for (const el of els.values()) el.remove();
+        els.clear();
+        items = [];
+        example = false;
+        save();
+      }
+      syncUI();
+    }, {once: true});
+    startDlg.showModal();
+  }
+
+  function finish(title, text) {
+    $('#doneTitle').textContent = title;
+    $('#doneText').textContent = text;
+    doneDlg.showModal();
+  }
+
+  submitBtn.addEventListener('click', async () => {
+    if (!items.length || sending) return;
+    if (!SUBMIT_URL) { finish('Couldn’t submit', 'Submission isn’t set up yet.'); return; }
+    const data = {
+      respondent: respondent ? respondent.rid : '',
+      session: respondent ? respondent.sid : '',
+      features: items.filter(i => i.fid !== 'idea').map(i => F[i.fid].name),
+      ideas: items.filter(i => i.fid === 'idea').map(i => i.text),
+      layout: items.map(({fid, x, y, text}) => ({fid, x: Math.round(x), y: Math.round(y), text})),
+      device: `${innerWidth}x${innerHeight} ${matchMedia('(pointer: coarse)').matches ? 'touch' : 'mouse'}`,
+      clientTime: new Date().toISOString()
+    };
+    sending = true;
+    syncUI();
+    const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), 20000);
+    try {
+      // A plain-text body keeps this a simple request, which Apps Script accepts from any site
+      const res = await fetch(SUBMIT_URL, {method: 'POST', body: JSON.stringify(data), signal: ctrl.signal});
+      const out = await res.json();
+      if (!out.ok) throw new Error(out.error || 'rejected');
+      submitted = true;
+      finish('Thank you', 'Your layout was submitted. You can keep editing and submit again; we’ll use your latest one.');
+    } catch (err) {
+      finish('Couldn’t submit', 'Check your internet connection and try again. Your layout is still saved on this device.');
+    } finally {
+      clearTimeout(timer);
+      sending = false;
+      syncUI();
+    }
+  });
+
+  const settle = () => {
+    items.forEach(place);
+    const nav = example && items.find(i => i.fid === 'nav');
+    if (nav) { nav.y = H - 24 - els.get(nav.key).offsetHeight; place(nav); }
+  };
+  settle();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(settle);
+  syncUI();
+
+  setInterval(() => { for (const n of document.querySelectorAll('[data-clock]')) n.textContent = hms(clock(n.dataset.clock)); }, 1000);
+  setInterval(() => {
+    hr = clamp(hr + Math.round(Math.random() * 4 - 2), 68, 78);
+    for (const n of document.querySelectorAll('[data-hr]')) n.textContent = hr;
+  }, 2500);
+})();
+</script>
+</body>
+</html>
