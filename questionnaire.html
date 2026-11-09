@@ -1,0 +1,417 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Neurosurgery AR Questionnaire</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+[hidden] { display: none !important; }
+/* Same palette as the feature board, so the two pages read as one study */
+:root {
+  --bg: #ecf1f0;
+  --surface: #f7faf9;
+  --raise: #ffffff;
+  --ink: #13211f;
+  --muted: #566865;
+  --line: #cddad7;
+  --accent: #0a766b;
+  --accent-ink: #ffffff;
+  --accent-soft: #d5ece8;
+  --warn: #b4540a;
+  --warn-soft: #fbe8d6;
+  --shadow: rgba(14, 52, 48, 0.18);
+  --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-num: "Barlow Semi Condensed", "IBM Plex Sans", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c1413; --surface: #131e1d; --raise: #192826; --ink: #e2ecea; --muted: #94a7a4; --line: #2c3f3c;
+    --accent: #3fc4b1; --accent-ink: #04211d; --accent-soft: #15332f; --warn: #ffb36b; --warn-soft: #3a2510; --shadow: rgba(0, 0, 0, 0.5);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c1413; --surface: #131e1d; --raise: #192826; --ink: #e2ecea; --muted: #94a7a4; --line: #2c3f3c;
+  --accent: #3fc4b1; --accent-ink: #04211d; --accent-soft: #15332f; --warn: #ffb36b; --warn-soft: #3a2510; --shadow: rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 400 16px/1.5 var(--font-ui); -webkit-font-smoothing: antialiased; }
+button, input, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Progress stays at the top while scrolling */
+.progress { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); padding-top: env(safe-area-inset-top, 0px); }
+.progress-in { max-width: 760px; margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 14px; font-size: 14px; color: var(--muted); }
+.bar { flex: 1; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.progress b { font: 600 17px/1 var(--font-num); color: var(--ink); font-variant-numeric: tabular-nums; }
+
+main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.eyebrow { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); }
+h1 { margin: 6px 0 0; font-size: clamp(24px, 1rem + 2vw, 32px); line-height: 1.2; font-weight: 600; text-wrap: balance; }
+.lead { margin: 10px 0 0; color: var(--muted); }
+
+.id-box { margin-top: 22px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.id-box label { display: block; font-weight: 600; }
+.id-box p { margin: 2px 0 10px; font-size: 14px; color: var(--muted); }
+
+.text-in { width: 100%; padding: 10px 12px; font-size: 16px; background: var(--raise); border: 1px solid var(--line); border-radius: 10px; }
+.text-in:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+textarea.text-in { min-height: 110px; resize: vertical; line-height: 1.45; }
+
+.section-title { margin: 40px 0 0; padding-bottom: 8px; font-size: 13px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--line); }
+
+/* Spacing goes on the margin: a fieldset puts its top padding below the legend, not above it */
+.q { margin: 28px 0 0; padding: 0; border: 0; min-width: 0; scroll-margin-top: 64px; }
+.q legend { padding: 0; width: 100%; }
+.q-head { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px; font-size: 17px; font-weight: 600; line-height: 1.4; }
+.qn { font: 700 18px/1.3 var(--font-num); color: var(--accent); }
+.hint { display: block; margin-top: 2px; font-size: 14px; font-weight: 400; color: var(--muted); }
+.tag { display: inline-block; margin-left: 6px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 500; vertical-align: 2px; color: var(--muted); border: 1px solid var(--line); }
+.q-body { margin: 12px 0 0 40px; }
+.q.missing .q-head { color: var(--warn); }
+.q.missing .qn { color: var(--warn); }
+.need { display: none; margin: 4px 0 0 40px; font-size: 14px; font-weight: 500; color: var(--warn); }
+.q.missing .need { display: block; }
+
+/* Choices: the whole row is the tap target */
+.opts { display: grid; gap: 6px; }
+.opt { display: flex; align-items: center; gap: 12px; min-height: 46px; padding: 9px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--raise); cursor: pointer; transition: border-color .15s, background-color .15s; }
+.opt:hover { border-color: var(--accent); }
+.opt input { flex: none; width: 20px; height: 20px; margin: 0; accent-color: var(--accent); }
+.opt:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.opt:has(input:disabled) { opacity: .45; cursor: default; }
+.opt:has(input:disabled):hover { border-color: var(--line); }
+
+/* 1 to 5 scales */
+.rows { display: grid; gap: 16px; }
+.stmt { margin: 0 0 8px; }
+.seg { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.seg label { position: relative; display: grid; place-items: center; min-height: 46px; border: 1px solid var(--line); border-radius: 10px; background: var(--raise); font: 600 18px/1 var(--font-num); cursor: pointer; transition: border-color .15s, background-color .15s; }
+.seg label:hover { border-color: var(--accent); }
+.seg input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: pointer; }
+.seg label:has(input:checked) { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.seg label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ends { display: flex; justify-content: space-between; gap: 12px; margin-top: 4px; font-size: 13px; color: var(--muted); }
+.row.missing .stmt { color: var(--warn); }
+
+.email { margin-top: 10px; }
+
+.submit-box { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--line); }
+.btn { padding: 12px 26px; border: 1px solid var(--accent); border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-size: 16px; font-weight: 600; cursor: pointer; }
+.btn:hover:not(:disabled) { filter: brightness(1.08); }
+.btn:disabled { opacity: .55; cursor: default; }
+.btn.ghost { background: var(--raise); color: var(--ink); border-color: var(--line); }
+.status { margin: 12px 0 0; font-size: 15px; }
+.status.err { color: var(--warn); font-weight: 500; }
+.note { margin: 12px 0 0; font-size: 13px; color: var(--muted); }
+
+.done { margin-top: 32px; padding: 28px 20px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); text-align: center; }
+.done h2 { margin: 0 0 6px; font-size: 24px; }
+.done p { margin: 0 0 18px; color: var(--muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  .bar i, .opt, .seg label { transition: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="progress" aria-hidden="true">
+  <div class="progress-in"><span><b id="answered">0</b> of <span id="total">0</span> answered</span><span class="bar"><i id="barFill"></i></span></div>
+</div>
+
+<main>
+  <p class="eyebrow">AR glasses for neurosurgery · questionnaire</p>
+  <h1>Lesion localization and AR glasses</h1>
+  <p class="lead">A short questionnaire for neurosurgeons about lesion localization. It takes 5 to 10 minutes: 18 quick questions, then 4 in your own words. Your answers are saved on this device as you go.</p>
+
+  <form id="form" novalidate autocomplete="off">
+    <div class="id-box">
+      <label for="rid">Your ID (optional)</label>
+      <p>Use the same ID as on the feature board, or leave it blank to stay anonymous.</p>
+      <input class="text-in" id="rid" maxlength="60" placeholder="e.g. NS-03">
+    </div>
+    <div id="questions"></div>
+    <div class="submit-box">
+      <button class="btn" id="submitBtn" type="submit">Submit answers</button>
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+      <p class="note">We record your answers, your ID if you entered one, and how long the questionnaire took.</p>
+    </div>
+  </form>
+
+  <section class="done" id="done" hidden tabindex="-1" aria-labelledby="doneTitle">
+    <h2 id="doneTitle">Thank you</h2>
+    <p>Your answers were submitted.</p>
+    <button class="btn ghost" id="againBtn" type="button">Start a new response</button>
+  </section>
+</main>
+
+<script>
+(() => {
+  // Google Apps Script web app; it writes these answers to the "Questionnaire" tab of the Sheet
+  const SUBMIT_URL = 'https://script.google.com/macros/s/AKfycbzrOGeXw3BOHJluvZ_EV-aD65LQplMPlU7_TwbrKffb--t4mQTAYodz3zyV8AioGZ_u/exec';
+  const KEY = 'ar-neuro-questionnaire-v1', BOARD_KEY = 'ar-neuro-survey-v1';
+
+  // type: one (single choice), many (checkboxes), scale (1-5), grid (several 1-5 rows), text (open answer)
+  // col is the Sheet column name; none is an option that clears the others; max caps a checkbox question
+  const SECTIONS = [
+    {title: 'About you', qs: [
+      {id: 'role', type: 'one', req: true, col: 'Q1 Role', text: 'What is your current role?',
+       opts: ['Attending neurosurgeon', 'Fellow', 'Resident', 'Other']},
+      {id: 'years', type: 'one', req: true, col: 'Q2 Years in neurosurgery', text: 'How many years have you been in neurosurgery, including residency?',
+       opts: ['Under 5', '5–10', '11–20', 'Over 20']},
+      {id: 'lesions', type: 'many', req: true, max: 3, col: 'Q3 Lesions operated on most', text: 'Which lesions do you operate on most?', hint: 'Choose up to 3.',
+       opts: ['High-grade glioma', 'Low-grade glioma', 'Metastasis', 'Meningioma', 'Cavernoma or other vascular lesion', 'Epileptogenic lesion', 'Pediatric tumor', 'Other']}
+    ]},
+    {title: 'Lesion localization today', qs: [
+      {id: 'navsys', type: 'many', req: true, col: 'Q4 Navigation systems', text: 'Which navigation systems do you use regularly?', hint: 'Choose all that apply.',
+       opts: ['Medtronic StealthStation', 'Brainlab', 'Synaptive', 'Another system', 'I don’t use navigation'], none: 'I don’t use navigation'},
+      {id: 'navuse', type: 'one', req: true, col: 'Q5 Navigation use in lesion cases', text: 'How often do you use navigation in cranial lesion cases?',
+       opts: ['Never', 'Rarely', 'About half of cases', 'Most cases', 'Every case']},
+      {id: 'hardlesion', type: 'many', req: true, max: 2, col: 'Q6 Hardest lesions to localize', text: 'Which lesions are hardest to localize?', hint: 'Choose up to 2.',
+       opts: ['Small lesions (under 1 cm)', 'Deep or subcortical lesions', 'Non-enhancing or low-grade tumors with unclear margins', 'Lesions next to eloquent cortex or tracts', 'Cavernomas or other small vascular lesions', 'Recurrent tumors after surgery or radiation']},
+      {id: 'hardest', type: 'one', req: true, col: 'Q7 Hardest stage', text: 'At which stage is lesion localization hardest for you?',
+       opts: ['Planning the incision and craniotomy', 'Opening the dura and choosing the corticectomy', 'Finding a subcortical lesion', 'Judging the resection margins', 'Late in the case, after brain shift']},
+      {id: 'lookaway', type: 'one', req: true, col: 'Q8 Looks at nav screen per case', text: 'In a typical lesion case, about how many times do you look away from the field to check the navigation screen?',
+       opts: ['Fewer than 5', '5–15', '15–30', 'More than 30', 'Not sure']},
+      {id: 'shift', type: 'one', req: true, col: 'Q9 Brain shift makes nav unreliable', text: 'How often does brain shift make navigation unreliable in your cases?',
+       opts: ['Never', 'Rarely', 'Sometimes', 'Often', 'Almost always']},
+      {id: 'error', type: 'one', req: true, col: 'Q10 Nav error by end of resection', text: 'In your experience, how far off is navigation by the end of a resection?',
+       opts: ['Under 2 mm', '2–5 mm', '5–10 mm', 'Over 10 mm', 'Not sure']},
+      {id: 'fallback', type: 'many', req: true, col: 'Q11 Relied on when nav is off', text: 'When navigation is off, what do you rely on?', hint: 'Choose all that apply.',
+       opts: ['Anatomical landmarks and experience', 'Intraoperative ultrasound', 'Intraoperative MRI or CT', '5-ALA or other fluorescence', 'Cortical or subcortical mapping', 'Re-registering the navigation']}
+    ]},
+    {title: 'An AR overlay for localization', qs: [
+      {id: 'useful', type: 'scale', req: true, col: 'Q12 Lesion overlay usefulness (1-5)', text: 'How useful would it be to see the lesion overlaid directly on the surgical field?', ends: ['Not useful', 'Extremely useful']},
+      {id: 'stages', type: 'many', req: true, max: 2, col: 'Q13 Stages where overlay helps most', text: 'At which stages would the overlay help you most?', hint: 'Choose up to 2.',
+       opts: ['Planning the incision and craniotomy', 'Opening the dura and choosing the corticectomy', 'Finding a subcortical lesion', 'Judging the resection margins', 'Checking for residual tumor']},
+      {id: 'show', type: 'many', req: true, max: 2, col: 'Q14 How to show the lesion', text: 'How would you want the lesion shown?', hint: 'Choose up to 2.',
+       opts: ['Outline projected onto the brain surface', 'Semi-transparent 3D model in place', 'Depth from the surface to the lesion', 'Distance from the instrument tip to the lesion', 'MRI slices beside the field']},
+      {id: 'structures', type: 'many', req: true, max: 3, col: 'Q15 Other structures to show', text: 'Besides the lesion, what should the overlay show?', hint: 'Choose up to 3.',
+       opts: ['Motor and language tracts (DTI)', 'Major arteries and veins', 'Eloquent cortex (fMRI or mapping)', 'Venous sinuses', 'Ventricles', 'Planned trajectory and entry point', 'Nothing else'], none: 'Nothing else'},
+      {id: 'accuracy', type: 'one', req: true, col: 'Q16 Accuracy needed', text: 'How accurate would the overlay need to be for you to rely on it?',
+       opts: ['Within 1 mm', 'Within 2 mm', 'Within 3 mm', 'Within 5 mm', 'Not sure']},
+      {id: 'trust', type: 'many', req: true, max: 2, col: 'Q17 What builds trust in the overlay', text: 'What would make you comfortable relying on the overlay?', hint: 'Choose up to 2.',
+       opts: ['A live accuracy readout in mm', 'A quick check against a known landmark', 'Agreement with intraoperative ultrasound', 'Automatic correction for brain shift', 'Published results from many cases', 'Hiding it instantly by voice or pedal']},
+      {id: 'worries', type: 'many', req: true, max: 2, col: 'Q18 Top concerns', text: 'Which of these would concern you most?', hint: 'Choose up to 2.',
+       opts: ['Registration accuracy and drift', 'The overlay hiding or cluttering the field', 'Lag between head movement and the overlay', 'Comfort and weight over a long case', 'Fit with loupes, headlight or microscope', 'Sterility and disruption to workflow', 'Cost and approvals (FDA, hospital)']}
+    ]},
+    {title: 'In your own words', qs: [
+      {id: 'concern', type: 'text', req: true, col: 'Q19 Biggest concern', text: 'What is your biggest concern about using AR glasses for lesion localization?'},
+      {id: 'need', type: 'text', req: true, col: 'Q20 Biggest need', text: 'What is your biggest unmet need in lesion localization today?'},
+      {id: 'hardcase', type: 'text', col: 'Q21 Hard case', text: 'Think of a recent case where localizing the lesion was hard. What happened, and what would have helped?',
+       hint: 'Please leave out anything that could identify a patient.'},
+      {id: 'else', type: 'text', col: 'Q22 Anything else', text: 'Anything else you’d like us to know?'}
+    ]}
+  ];
+
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+  const form = $('#form'), box = $('#questions'), statusEl = $('#status'), submitBtn = $('#submitBtn'), rid = $('#rid');
+  const QS = SECTIONS.flatMap(s => s.qs);
+
+  // ---- Render
+  let n = 0, html = '';
+  const seg = (name, label, ends) => `<div class="seg" role="radiogroup" aria-label="${esc(label)}">${[1, 2, 3, 4, 5].map(v =>
+    `<label><input type="radio" name="${name}" value="${v}" aria-label="${v}${v === 1 ? ', ' + esc(ends[0]) : v === 5 ? ', ' + esc(ends[1]) : ''}"><span aria-hidden="true">${v}</span></label>`).join('')}</div>
+    <div class="ends" aria-hidden="true"><span>1 · ${esc(ends[0])}</span><span>5 · ${esc(ends[1])}</span></div>`;
+  for (const s of SECTIONS) {
+    html += `<h2 class="section-title">${esc(s.title)}</h2>`;
+    for (const q of s.qs) {
+      q.n = ++n;
+      const head = `<legend><span class="q-head"><span class="qn">${q.n}</span><span>${esc(q.text)}${q.req ? '' : '<span class="tag">Optional</span>'}${q.hint ? `<span class="hint">${esc(q.hint)}</span>` : ''}</span></span></legend>`;
+      let body = '';
+      if (q.type === 'one' || q.type === 'many') {
+        const t = q.type === 'one' ? 'radio' : 'checkbox';
+        body = `<div class="opts">${q.opts.map(o => `<label class="opt"><input type="${t}" name="${q.id}" value="${esc(o)}"><span>${esc(o)}</span></label>`).join('')}</div>`;
+        if (q.email) body += `<div class="email" id="emailBox" hidden><input class="text-in" type="email" id="email" maxlength="120" placeholder="Your email" aria-label="Your email"></div>`;
+      } else if (q.type === 'scale') {
+        body = seg(q.id, q.text, q.ends);
+      } else if (q.type === 'grid') {
+        body = `<div class="rows">${q.rows.map(([k, t]) => `<div class="row" data-row="${q.id}_${k}"><p class="stmt">${esc(t)}</p>${seg(`${q.id}_${k}`, t, q.ends)}</div>`).join('')}</div>`;
+      } else {
+        body = `<textarea class="text-in" name="${q.id}" maxlength="2000" aria-label="${esc(q.text)}"></textarea>`;
+      }
+      html += `<fieldset class="q" id="q-${q.id}">${head}<p class="need">Please answer this question.</p><div class="q-body">${body}</div></fieldset>`;
+    }
+  }
+  box.innerHTML = html;
+  $('#total').textContent = QS.length;
+
+  // ---- Read answers
+  const checked = name => [...form.querySelectorAll(`input[name="${name}"]:checked`)].map(i => i.value);
+  const textOf = name => form.querySelector(`[name="${name}"]`).value.trim();
+  const rowsLeft = q => q.rows.filter(([k]) => !checked(`${q.id}_${k}`).length);
+  function answered(q) {
+    if (q.type === 'grid') return rowsLeft(q).length === 0;
+    if (q.type === 'text') return !!textOf(q.id);
+    return checked(q.id).length > 0;
+  }
+
+  function collect() {
+    const out = [];
+    for (const q of QS) {
+      if (q.type === 'grid') q.rows.forEach(([k, , short]) => { const v = checked(`${q.id}_${k}`)[0]; out.push([`${q.col}${k} ${short} (${q.unit})`, v ? Number(v) : '']); });
+      else if (q.type === 'scale') { const v = checked(q.id)[0]; out.push([q.col, v ? Number(v) : '']); }
+      else if (q.type === 'text') out.push([q.col, textOf(q.id)]);
+      else out.push([q.col, checked(q.id).join('; ')]);
+      if (q.email) out.push(['Q23 Email', checked(q.id)[0] === 'Yes' ? $('#email').value.trim() : '']);
+    }
+    return out;
+  }
+
+  // ---- Draft saved on this device
+  let started = null;
+  function snapshot() {
+    const v = {};
+    for (const el of form.querySelectorAll('input, textarea')) {
+      if (el.type === 'radio' || el.type === 'checkbox') { if (el.checked) (v[el.name] = v[el.name] || []).push(el.value); }
+      else if (el.id || el.name) v[el.id || el.name] = el.value;
+    }
+    return v;
+  }
+  function saveDraft() {
+    try { localStorage.setItem(KEY, JSON.stringify({v: snapshot(), started, sid: session})); } catch (e) {}
+  }
+  function loadDraft() {
+    let d = null;
+    try { d = JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) {}
+    return d && typeof d === 'object' ? d : null;
+  }
+  let board = null;
+  try { board = JSON.parse(localStorage.getItem(BOARD_KEY) || 'null'); } catch (e) {}
+  const draft = loadDraft();
+  const newSid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+  let session = (draft && draft.sid) || (board && board.sid) || newSid();
+  if (draft && draft.v) {
+    started = draft.started || null;
+    for (const el of form.querySelectorAll('input, textarea')) {
+      const val = draft.v[el.id || el.name];
+      if (val == null) continue;
+      if (el.type === 'radio' || el.type === 'checkbox') el.checked = Array.isArray(val) && val.includes(el.value);
+      else if (typeof val === 'string') el.value = val;
+    }
+  } else if (board && typeof board.rid === 'string') {
+    rid.value = board.rid;
+  }
+
+  // ---- Behaviour
+  function sync() {
+    let a = 0;
+    for (const q of QS) {
+      const ok = answered(q);
+      if (ok) a++;
+      const fs = $(`#q-${q.id}`);
+      if (ok) fs.classList.remove('missing');
+      if (q.type === 'grid') for (const [k] of q.rows) if (checked(`${q.id}_${k}`).length) fs.querySelector(`[data-row="${q.id}_${k}"]`).classList.remove('missing');
+      if (q.max) {
+        const full = checked(q.id).length >= q.max;
+        for (const i of fs.querySelectorAll('input')) i.disabled = full && !i.checked;
+      }
+      if (q.email) $('#emailBox').hidden = checked(q.id)[0] !== 'Yes';
+    }
+    $('#answered').textContent = a;
+    $('#barFill').style.width = (a / QS.length * 100) + '%';
+  }
+
+  form.addEventListener('change', e => {
+    const el = e.target, q = QS.find(x => x.id === el.name);
+    // An exclusive "none" option clears the other choices, and the other way round
+    if (q && q.none && el.checked) {
+      for (const i of form.querySelectorAll(`input[name="${q.id}"]`)) {
+        if (i === el) continue;
+        if (el.value === q.none || i.value === q.none) i.checked = false;
+      }
+    }
+    if (!started && el !== rid) started = Date.now();
+    sync();
+    saveDraft();
+  });
+  form.addEventListener('input', e => {
+    if (!started && e.target.tagName === 'TEXTAREA') started = Date.now();
+    sync();
+    saveDraft();
+  });
+
+  let sending = false;
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    if (sending) return;
+    const missing = QS.filter(q => q.req && !answered(q));
+    for (const q of missing) {
+      const fs = $(`#q-${q.id}`);
+      fs.classList.add('missing');
+      if (q.type === 'grid') for (const [k] of rowsLeft(q)) fs.querySelector(`[data-row="${q.id}_${k}"]`).classList.add('missing');
+    }
+    if (missing.length) {
+      statusEl.className = 'status err';
+      statusEl.textContent = missing.length === 1 ? '1 question still needs an answer. It is highlighted above.' : `${missing.length} questions still need an answer. They are highlighted above.`;
+      const first = $(`#q-${missing[0].id}`);
+      first.scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start'});
+      const focusable = first.querySelector('input:not(:checked), textarea');
+      if (focusable) focusable.focus({preventScroll: true});
+      return;
+    }
+    if (!SUBMIT_URL) { statusEl.className = 'status err'; statusEl.textContent = 'Submission isn’t set up yet.'; return; }
+    const data = {
+      form: 'questionnaire',
+      respondent: rid.value.trim().slice(0, 60),
+      session,
+      answers: collect(),
+      minutes: started ? Math.round((Date.now() - started) / 6000) / 10 : null,
+      device: `${innerWidth}x${innerHeight} ${matchMedia('(pointer: coarse)').matches ? 'touch' : 'mouse'}`,
+      clientTime: new Date().toISOString()
+    };
+    sending = true;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Submitting…';
+    statusEl.className = 'status';
+    statusEl.textContent = '';
+    const ctrl = new AbortController(), timer = setTimeout(() => ctrl.abort(), 20000);
+    try {
+      // A plain-text body keeps this a simple request, which Apps Script accepts from any site
+      const res = await fetch(SUBMIT_URL, {method: 'POST', body: JSON.stringify(data), signal: ctrl.signal});
+      const out = await res.json();
+      if (!out.ok) throw new Error(out.error || 'rejected');
+      try { localStorage.removeItem(KEY); } catch (err) {}
+      form.hidden = true;
+      $('#done').hidden = false;
+      $('#done').focus();
+      window.scrollTo(0, 0);
+    } catch (err) {
+      statusEl.className = 'status err';
+      statusEl.textContent = 'Couldn’t submit. Check your internet connection and try again. Your answers are still saved on this device.';
+    } finally {
+      clearTimeout(timer);
+      sending = false;
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Submit answers';
+    }
+  });
+
+  // For a shared device: clear everything for the next person
+  $('#againBtn').addEventListener('click', () => {
+    form.reset();
+    rid.value = '';
+    started = null;
+    session = newSid();
+    statusEl.textContent = '';
+    for (const el of form.querySelectorAll('.missing')) el.classList.remove('missing');
+    $('#done').hidden = true;
+    form.hidden = false;
+    sync();
+    window.scrollTo(0, 0);
+    rid.focus({preventScroll: true});
+  });
+
+  sync();
+})();
+</script>
+</body>
+</html>
