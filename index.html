@@ -69,6 +69,7 @@ button, input { font: inherit; color: inherit; }
 /* Header */
 .top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 10px 32px; padding-block: 16px 14px; }
 .titles { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.nowrap { white-space: nowrap; }
 .eyebrow { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); }
 h1 { margin: 0; font-size: clamp(20px, 1rem + 0.9vw, 28px); line-height: 1.25; font-weight: 600; text-wrap: balance; }
 .sub { margin: 0; max-width: 72ch; font-size: 14px; color: var(--muted); }
@@ -300,6 +301,12 @@ body.dragging, body.dragging * { cursor: grabbing !important; }
   .tray { overflow: visible; }
   .idea { position: static; }
 }
+/* Phones in landscape: view on the left (sticky), features scroll on the right */
+@media (max-width: 899px) and (orientation: landscape) and (max-height: 500px) {
+  .board { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); grid-template-areas: "view left" "view right"; align-items: start; }
+  .view { padding-block: 4px 0; }
+  .stage-wrap { width: 100%; }
+}
 /* Phones: one column, tap a card to add it */
 @media (max-width: 640px) {
   .board { grid-template-columns: minmax(0, 1fr); grid-template-areas: "view" "left" "right"; }
@@ -309,6 +316,9 @@ body.dragging, body.dragging * { cursor: grabbing !important; }
   .card { grid-template-columns: 24px minmax(0, 1fr); gap: 8px; touch-action: pan-y; }
   .card-ico { width: 24px; height: 24px; }
   .card-state { display: none; }
+}
+@media (pointer: coarse) {
+  .field input, .idea-row input { font-size: 16px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .ecg-run, .rec-dot, .bars i, .model-svg { animation: none; }
@@ -321,9 +331,9 @@ body.dragging, body.dragging * { cursor: grabbing !important; }
 <div class="app">
   <header class="top">
     <div class="titles">
-      <p class="eyebrow">AR glasses for neurosurgery · co-design</p>
+      <p class="eyebrow">AR glasses for neurosurgery · <span class="nowrap">co-design</span></p>
       <h1>What would you want to see in your glasses during surgery?</h1>
-      <p class="sub">Drag features from either side into the view and place them where they would work for you. Drag anything you don't need out of the view. Click Submit when you're done.</p>
+      <p class="sub">Drag features into the view, or tap one to add it, and place them where they would work for you. Drag anything you don't need out of the view. Press Submit when you're done.</p>
     </div>
     <div class="actions">
       <span class="count"><b id="count">0</b> in view</span>
@@ -504,7 +514,7 @@ body.dragging, body.dragging * { cursor: grabbing !important; }
               <rect width="1920" height="1080" fill="url(#sc-vig)"/>
               <rect width="1920" height="1080" fill="#031012" opacity=".14"/>
             </svg>
-            <div class="stage-hint" id="stageHint" hidden>Drag features here<small>or click any card on either side</small></div>
+            <div class="stage-hint" id="stageHint" hidden>Drag features here<small>or tap any feature to add it</small></div>
           </div>
         </div>
       </div>
