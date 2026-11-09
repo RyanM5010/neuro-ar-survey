@@ -1156,7 +1156,10 @@ body.dragging, body.dragging * { cursor: grabbing !important; }
   try { respondent = JSON.parse(localStorage.getItem(RKEY) || 'null'); } catch (e) {}
   if (!respondent || typeof respondent.sid !== 'string') {
     respondent = null;
-    startDlg.addEventListener('close', () => {
+    // Runs on the Start click or Escape itself. The close event fires later, after a quick tap on a
+    // card could already have landed in the example layout, so it is only a fallback.
+    const begin = () => {
+      if (respondent) return;
       respondent = {rid: ridInput.value.trim().slice(0, 60), sid: Math.random().toString(36).slice(2, 10) + Date.now().toString(36)};
       try { localStorage.setItem(RKEY, JSON.stringify(respondent)); } catch (e) {}
       if (example) {
@@ -1167,7 +1170,10 @@ body.dragging, body.dragging * { cursor: grabbing !important; }
         save();
       }
       syncUI();
-    }, {once: true});
+    };
+    startDlg.querySelector('form').addEventListener('submit', begin);
+    startDlg.addEventListener('cancel', begin);
+    startDlg.addEventListener('close', begin);
     startDlg.showModal();
   }
 
