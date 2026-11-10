@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AR Surgeon Survey</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Entry page: pick cranial or spine, then the feature board or the questionnaire. Lives at /start/ on the site. */
+:root {
+  --bg: #ecf1f0;
+  --surface: #f7faf9;
+  --raise: #ffffff;
+  --ink: #13211f;
+  --muted: #566865;
+  --line: #cddad7;
+  --accent: #0a766b;
+  --accent-ink: #ffffff;
+  --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c1413; --surface: #131e1d; --raise: #192826; --ink: #e2ecea; --muted: #94a7a4; --line: #2c3f3c;
+    --accent: #3fc4b1; --accent-ink: #04211d;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c1413; --surface: #131e1d; --raise: #192826; --ink: #e2ecea; --muted: #94a7a4; --line: #2c3f3c;
+  --accent: #3fc4b1; --accent-ink: #04211d;
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 400 16px/1.5 var(--font-ui); -webkit-font-smoothing: antialiased; }
+
+main { max-width: 1000px; margin: 0 auto; padding: max(28px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 48px max(16px, env(safe-area-inset-left, 0px)); }
+.eyebrow { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); }
+h1 { margin: 6px 0 0; font-size: clamp(24px, 1rem + 2vw, 34px); line-height: 1.2; font-weight: 600; text-wrap: balance; }
+.lead { margin: 10px 0 0; max-width: 62ch; color: var(--muted); }
+
+.choices { margin-top: 26px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 20px; }
+.choice { display: flex; flex-direction: column; gap: 14px; padding: 16px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
+.choice img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 12px; background: #0d2a2b; }
+.choice h2 { margin: 0; font-size: 22px; line-height: 1.25; font-weight: 600; }
+.choice .what { margin: 2px 0 0; font-size: 15px; color: var(--muted); }
+.links { display: grid; gap: 10px; margin-top: auto; }
+.go { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; padding: 12px 18px; border-radius: 14px; font-weight: 600; text-decoration: none; transition: filter .15s, border-color .15s; }
+.go small { font-size: 14px; font-weight: 400; white-space: nowrap; opacity: .85; }
+.go.primary { background: var(--accent); color: var(--accent-ink); }
+.go.secondary { background: var(--raise); color: var(--ink); border: 1px solid var(--line); }
+.go.primary:hover { filter: brightness(1.08); }
+.go.secondary:hover { border-color: var(--accent); }
+.go:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.note { margin: 24px 0 0; font-size: 14px; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { .go { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+  <p class="eyebrow">AR glasses for cranial and spine surgery · surgeon survey</p>
+  <h1>What would you want to see in your glasses during surgery?</h1>
+  <p class="lead">Pick the surgery you mainly do. Each has two short parts, and you can do one or both. If you do both cranial and spine surgery, you’re welcome to do both.</p>
+
+  <div class="choices">
+    <section class="choice" aria-labelledby="t-cranial">
+      <img src="cranial.jpg" width="1200" height="675" alt="Simulated craniotomy seen through the glasses, with navigation and planned trajectories">
+      <div><h2 id="t-cranial">Cranial</h2><p class="what">Craniotomy for a brain tumor</p></div>
+      <div class="links">
+        <a class="go primary" href="../" aria-label="Cranial: build your ideal view, a few minutes">Build your ideal view<small>A few minutes</small></a>
+        <a class="go secondary" href="../questionnaire.html" aria-label="Cranial: questionnaire, 5 to 10 minutes">Questionnaire<small>5–10 minutes</small></a>
+      </div>
+    </section>
+    <section class="choice" aria-labelledby="t-spine">
+      <img src="spine.jpg" width="1200" height="675" alt="Simulated lumbar fusion seen through the glasses, with navigation and planned screw paths">
+      <div><h2 id="t-spine">Spine</h2><p class="what">Lumbar fusion with pedicle screws</p></div>
+      <div class="links">
+        <a class="go primary" href="../spine/" aria-label="Spine: build your ideal view, a few minutes">Build your ideal view<small>A few minutes</small></a>
+        <a class="go secondary" href="../spine/questionnaire.html" aria-label="Spine: questionnaire, 5 to 10 minutes">Questionnaire<small>5–10 minutes</small></a>
+      </div>
+    </section>
+  </div>
+
+  <p class="note">Works on a phone, tablet or computer; a tablet or computer gives the best view. We record your name, your answers and the features you place. All patient data shown is mock-up.</p>
+</main>
+</body>
+</html>
