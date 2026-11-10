@@ -133,15 +133,15 @@ textarea.text-in { min-height: 110px; resize: vertical; line-height: 1.45; }
 
   <form id="form" novalidate autocomplete="off">
     <div class="id-box">
-      <label for="rid">Your ID (optional)</label>
-      <p>Use the same ID as on the feature board, or leave it blank to stay anonymous.</p>
-      <input class="text-in" id="rid" maxlength="60" placeholder="e.g. NS-03">
+      <label for="rid">Your name</label>
+      <p>So we can make sure we hear from everyone.</p>
+      <input class="text-in" id="rid" maxlength="60" placeholder="First and last name" autocomplete="name">
     </div>
     <div id="questions"></div>
     <div class="submit-box">
       <button class="btn" id="submitBtn" type="submit">Submit answers</button>
       <p class="status" id="status" role="status" aria-live="polite"></p>
-      <p class="note">We record your answers, your ID if you entered one, and how long the questionnaire took.</p>
+      <p class="note">We record your name, your answers, and how long the questionnaire took.</p>
     </div>
   </form>
 

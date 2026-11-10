@@ -540,9 +540,9 @@ body.dragging, body.dragging * { cursor: grabbing !important; }
 <dialog id="startDlg" aria-labelledby="startTitle">
   <form method="dialog" autocomplete="off">
     <h2 id="startTitle">Before you start</h2>
-    <p>Enter the ID you were given, or your name. Leave it blank to stay anonymous.</p>
-    <label class="field">Your ID (optional)<input id="ridInput" maxlength="60" placeholder="e.g. NS-03"></label>
-    <p class="note">We record only the features you place, where you place them, and anything you write in.</p>
+    <p>Please enter your name, so we can make sure we hear from everyone.</p>
+    <label class="field">Your name<input id="ridInput" maxlength="60" placeholder="First and last name" autocomplete="name"></label>
+    <p class="note">We record your name, the features you place, where you place them, and anything you write in.</p>
     <div class="dlg-actions"><button class="btn primary" value="start">Start</button></div>
   </form>
 </dialog>
@@ -1162,7 +1162,7 @@ body.dragging, body.dragging * { cursor: grabbing !important; }
     [{fid: 'timer', x: 24, y: 24}, {fid: 'vitals', x: W - 24 - F.vitals.w, y: 24}, {fid: 'nav', x: 24, y: H}].forEach(restore);
     example = true;
   }
-  // Respondent ID: asked once per device, blank means anonymous
+  // Respondent name: asked once per device; it may be left blank
   try { respondent = JSON.parse(localStorage.getItem(RKEY) || 'null'); } catch (e) {}
   if (!respondent || typeof respondent.sid !== 'string') {
     respondent = null;
