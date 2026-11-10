@@ -114,6 +114,8 @@ textarea.text-in { min-height: 110px; resize: vertical; line-height: 1.45; }
 .done { margin-top: 32px; padding: 28px 20px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); text-align: center; }
 .done h2 { margin: 0 0 6px; font-size: 24px; }
 .done p { margin: 0 0 18px; color: var(--muted); }
+.done-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+a.btn { display: inline-block; text-decoration: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .bar i, .opt, .seg label { transition: none; }
@@ -127,7 +129,7 @@ textarea.text-in { min-height: 110px; resize: vertical; line-height: 1.45; }
 </div>
 
 <main>
-  <p class="eyebrow">AR glasses for spine surgery · questionnaire</p>
+  <p class="eyebrow">AR glasses for spine surgery · part 2 of 2</p>
   <h1>Spine navigation and AR glasses</h1>
   <p class="lead">A short questionnaire for spine surgeons about level localization and screw placement. It takes 5 to 10 minutes: 18 quick questions, then 4 in your own words. Your answers are saved on this device as you go.</p>
 
@@ -147,8 +149,9 @@ textarea.text-in { min-height: 110px; resize: vertical; line-height: 1.45; }
 
   <section class="done" id="done" hidden tabindex="-1" aria-labelledby="doneTitle">
     <h2 id="doneTitle">Thank you</h2>
-    <p>Your answers were submitted.</p>
-    <button class="btn ghost" id="againBtn" type="button">Start a new response</button>
+    <p id="doneText">Your answers were submitted.</p>
+    <p id="part1" hidden>Haven’t built your ideal view yet? It’s part 1 and takes a few minutes.</p>
+    <div class="done-actions"><a class="btn" id="part1Link" href="./" hidden>Go to part 1</a><button class="btn ghost" id="againBtn" type="button">Start a new response</button></div>
   </section>
 </main>
 
@@ -380,6 +383,11 @@ textarea.text-in { min-height: 110px; resize: vertical; line-height: 1.45; }
       if (!out.ok) throw new Error(out.error || 'rejected');
       try { localStorage.removeItem(KEY); } catch (err) {}
       form.hidden = true;
+      // Point to part 1 if it hasn't been done on this device
+      let boardDone = false;
+      try { const b = JSON.parse(localStorage.getItem(BOARD_KEY) || 'null'); boardDone = !!(b && b.done); } catch (err) {}
+      $('#part1').hidden = $('#part1Link').hidden = boardDone;
+      $('#doneText').textContent = boardDone ? 'Your answers were submitted. You’ve finished both parts.' : 'Your answers were submitted.';
       $('#done').hidden = false;
       $('#done').focus();
       window.scrollTo(0, 0);

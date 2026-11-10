@@ -51,6 +51,8 @@ h1 { margin: 6px 0 0; font-size: clamp(24px, 1rem + 2vw, 34px); line-height: 1.2
 .go.primary { background: var(--accent); color: var(--accent-ink); }
 .go.secondary { background: var(--raise); color: var(--ink); border: 1px solid var(--line); }
 .go.primary:hover { filter: brightness(1.08); }
+.skip { justify-self: center; padding: 8px 4px; font-size: 14px; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
+.skip:hover { color: var(--accent); }
 .go.secondary:hover { border-color: var(--accent); }
 .go:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 
@@ -62,23 +64,23 @@ h1 { margin: 6px 0 0; font-size: clamp(24px, 1rem + 2vw, 34px); line-height: 1.2
 <main>
   <p class="eyebrow">AR glasses for cranial and spine surgery&nbsp;· surgeon survey</p>
   <h1>What would you want to see in your glasses during surgery?</h1>
-  <p class="lead">Pick the surgery you mainly do. Each has two short parts, and you can do one or both. If you do both cranial and spine surgery, you’re welcome to do both.</p>
+  <p class="lead">Pick the surgery you mainly do. There are two short parts and we’d love you to do both: build your ideal view, then answer a questionnaire. Part 1 takes you to part 2.</p>
 
   <div class="choices">
     <section class="choice" aria-labelledby="t-cranial">
       <img src="cranial.jpg" width="1200" height="675" alt="Simulated craniotomy seen through the glasses, with navigation and planned trajectories">
       <div><h2 id="t-cranial">Cranial</h2><p class="what">Craniotomy for a brain tumor</p></div>
       <div class="links">
-        <a class="go primary" href="../" aria-label="Cranial: build your ideal view, a few minutes">Build your ideal view<small>A few minutes</small></a>
-        <a class="go secondary" href="../questionnaire.html" aria-label="Cranial: questionnaire, 5 to 10 minutes">Questionnaire<small>5–10 minutes</small></a>
+        <a class="go primary" href="../" aria-label="Cranial: start with part 1, build your ideal view">Start<small>Part 1 of 2 · a few minutes</small></a>
+        <a class="skip" href="../questionnaire.html" aria-label="Cranial: already did part 1? Go to the questionnaire">Already did part 1? Go to the questionnaire</a>
       </div>
     </section>
     <section class="choice" aria-labelledby="t-spine">
       <img src="spine.jpg" width="1200" height="675" alt="Simulated lumbar fusion seen through the glasses, with navigation and planned screw paths">
       <div><h2 id="t-spine">Spine</h2><p class="what">Lumbar fusion with pedicle screws</p></div>
       <div class="links">
-        <a class="go primary" href="../spine/" aria-label="Spine: build your ideal view, a few minutes">Build your ideal view<small>A few minutes</small></a>
-        <a class="go secondary" href="../spine/questionnaire.html" aria-label="Spine: questionnaire, 5 to 10 minutes">Questionnaire<small>5–10 minutes</small></a>
+        <a class="go primary" href="../spine/" aria-label="Spine: start with part 1, build your ideal view">Start<small>Part 1 of 2 · a few minutes</small></a>
+        <a class="skip" href="../spine/questionnaire.html" aria-label="Spine: already did part 1? Go to the questionnaire">Already did part 1? Go to the questionnaire</a>
       </div>
     </section>
   </div>

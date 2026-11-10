@@ -73,7 +73,7 @@ button, input { font: inherit; color: inherit; }
 .eyebrow { margin: 0; font-size: 12px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); }
 h1 { margin: 0; font-size: clamp(20px, 1rem + 0.9vw, 28px); line-height: 1.25; font-weight: 600; text-wrap: balance; }
 .sub { margin: 0; max-width: 72ch; font-size: 14px; color: var(--muted); }
-.actions { display: flex; align-items: center; gap: 14px; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px 14px; }
 .count { font-size: 14px; color: var(--muted); white-space: nowrap; }
 .count b { font: 600 22px/1 var(--font-hud); color: var(--ink); font-variant-numeric: tabular-nums; padding-inline: 2px; }
 .btn { padding: 8px 16px; border: 1px solid var(--line); border-radius: 999px; background: var(--raise); font-size: 14px; font-weight: 600; white-space: nowrap; cursor: pointer; transition: border-color .15s, color .15s, background-color .15s; }
@@ -82,6 +82,7 @@ h1 { margin: 0; font-size: clamp(20px, 1rem + 0.9vw, 28px); line-height: 1.25; f
 .btn.undo, .btn.undo:hover:not(:disabled) { background: var(--ink); border-color: var(--ink); color: var(--bg); }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .btn.primary:hover:not(:disabled) { color: var(--accent-ink); filter: brightness(1.1); }
+a.btn { display: inline-flex; align-items: center; text-decoration: none; }
 
 /* Start and result dialogs */
 dialog { width: min(440px, calc(100vw - 32px)); padding: 24px; border: 1px solid var(--line); border-radius: 16px; background: var(--raise); color: var(--ink); box-shadow: 0 24px 60px -20px var(--shadow); }
@@ -331,14 +332,15 @@ body.dragging, body.dragging * { cursor: grabbing !important; }
 <div class="app">
   <header class="top">
     <div class="titles">
-      <p class="eyebrow">AR glasses for neurosurgery · <span class="nowrap">co-design</span></p>
+      <p class="eyebrow">AR glasses for neurosurgery · <span class="nowrap">part 1 of 2</span></p>
       <h1>What would you want to see in your glasses during surgery?</h1>
-      <p class="sub">Drag features into the view, or tap one to add it, and place them where they would work for you. Drag anything you don't need out of the view. Press Submit when you're done.</p>
+      <p class="sub">Drag features into the view, or tap one to add it, and place them where they would work for you. Drag anything you don't need out of the view. Press Submit when you're done, then go on to part 2, a short questionnaire.</p>
     </div>
     <div class="actions">
       <span class="count"><b id="count">0</b> in view</span>
       <button class="btn" id="clearBtn" type="button">Clear view</button>
       <button class="btn primary" id="submitBtn" type="button">Submit</button>
+      <a class="btn primary" id="nextBtn" href="questionnaire.html" hidden>Part 2: questionnaire</a>
     </div>
   </header>
 
@@ -540,9 +542,9 @@ body.dragging, body.dragging * { cursor: grabbing !important; }
 <dialog id="startDlg" aria-labelledby="startTitle">
   <form method="dialog" autocomplete="off">
     <h2 id="startTitle">Before you start</h2>
-    <p>Please enter your name, so we can make sure we hear from everyone.</p>
+    <p>There are two parts: first build your ideal view here (a few minutes), then a short questionnaire (5–10 minutes).</p>
     <label class="field">Your name<input id="ridInput" maxlength="60" placeholder="First and last name" autocomplete="name"></label>
-    <p class="note">We record your name, the features you place, where you place them, and anything you write in.</p>
+    <p class="note">Your name helps us make sure we hear from everyone. We record your name, the features you place, where you place them, and anything you write in.</p>
     <div class="dlg-actions"><button class="btn primary" value="start">Start</button></div>
   </form>
 </dialog>
@@ -551,7 +553,7 @@ body.dragging, body.dragging * { cursor: grabbing !important; }
   <form method="dialog">
     <h2 id="doneTitle"></h2>
     <p id="doneText"></p>
-    <div class="dlg-actions"><button class="btn primary">OK</button></div>
+    <div class="dlg-actions"><button class="btn" id="doneBtn">Back to my view</button><a class="btn primary" id="doneNext" href="questionnaire.html">Continue to part 2</a></div>
   </form>
 </dialog>
 
@@ -567,7 +569,7 @@ body.dragging, body.dragging * { cursor: grabbing !important; }
   const stageWrap = $('#stageWrap'), stage = $('#stage'), ghostLayer = $('#ghostLayer');
   const hint = $('#stageHint'), exampleTag = $('#exampleTag'), countEl = $('#count'), clearBtn = $('#clearBtn');
   const trayL = $('#trayL'), trayR = $('#trayR'), ideaForm = $('#ideaForm'), ideaInput = $('#ideaInput');
-  const submitBtn = $('#submitBtn'), startDlg = $('#startDlg'), ridInput = $('#ridInput'), doneDlg = $('#doneDlg');
+  const submitBtn = $('#submitBtn'), startDlg = $('#startDlg'), ridInput = $('#ridInput'), doneDlg = $('#doneDlg'), nextBtn = $('#nextBtn');
 
   const ICON = {
     vitals: '<path d="M3 12h4l2.2-5 3.6 10 2.2-5H21"/>',
@@ -1185,11 +1187,17 @@ body.dragging, body.dragging * { cursor: grabbing !important; }
     startDlg.addEventListener('cancel', begin);
     startDlg.addEventListener('close', begin);
     startDlg.showModal();
+  } else if (respondent.done) {
+    nextBtn.hidden = false;
   }
 
-  function finish(title, text) {
+  // After a successful submit the dialog leads on to part 2; after an error it only closes
+  function finish(title, text, ok) {
     $('#doneTitle').textContent = title;
     $('#doneText').textContent = text;
+    $('#doneNext').hidden = !ok;
+    $('#doneBtn').textContent = ok ? 'Back to my view' : 'OK';
+    $('#doneBtn').classList.toggle('primary', !ok);
     doneDlg.showModal();
   }
 
@@ -1214,7 +1222,12 @@ body.dragging, body.dragging * { cursor: grabbing !important; }
       const out = await res.json();
       if (!out.ok) throw new Error(out.error || 'rejected');
       submitted = true;
-      finish('Thank you', 'Your layout was submitted. You can keep editing and submit again; we’ll use your latest one.');
+      if (respondent) {
+        respondent.done = true;
+        try { localStorage.setItem(RKEY, JSON.stringify(respondent)); } catch (e) {}
+      }
+      nextBtn.hidden = false;
+      finish('Part 1 done, thank you', 'Next is part 2, a short questionnaire (5–10 minutes). You can come back and edit your view at any time.', true);
     } catch (err) {
       finish('Couldn’t submit', 'Check your internet connection and try again. Your layout is still saved on this device.');
     } finally {
